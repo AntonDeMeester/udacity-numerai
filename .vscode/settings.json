@@ -1,0 +1,12 @@
+{
+    "editor.rulers": [
+        80,
+        120
+    ],
+    "python.analysis.logLevel": "Information",
+    "python.linting.mypyEnabled": true,
+    "python.pythonPath": "C:\\Users\\Anton\\.virtualenvs\\udacity-numerai-GOsii85r\\Scripts\\python.exe",
+    "python.pipenvPath": "C:\\Users\\Anton\\.virtualenvs\\udacity-numerai-GOsii85r\\Scripts",
+    "python.testing.pytestEnabled": true,
+    "python.terminal.activateEnvironment": false
+}
