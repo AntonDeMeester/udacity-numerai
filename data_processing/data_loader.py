@@ -2,8 +2,9 @@ from __future__ import annotations
 
 # Default Python libraries
 from datetime import date
+import logging
 import typing
-from typing import List, Tuple, Optional, Iterable
+from typing import List, Tuple, Optional, Iterable, Dict
 
 # Data science libraries
 import numpy as np
@@ -13,6 +14,7 @@ import sklearn
 from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 
+LOGGER = logging.getLogger(__name__)
 
 class DataLoader:
     """
@@ -51,8 +53,8 @@ class DataLoader:
             validation_frac, test_frac
         )
 
-        assert (
-            not(local_data_location is None and data is None)
+        assert not (
+            local_data_location is None and data is None
         ), """
         Both local data location and data cannot be filled in at the same time.
         """
@@ -65,7 +67,7 @@ class DataLoader:
         # We will only load the data when required
         self._data = data
 
-        # Several subset of data
+        # Initialize several subsets of data to load later
         self._train_data = None
         self._validation_data = None
         self._test_data = None
@@ -78,7 +80,10 @@ class DataLoader:
         """
         if self._data is not None:
             return self._data
-        self._data = pd.read_csv(self.local_data_location, index_col=self.index_column, low_memory=False)
+        self._data = pd.read_csv(
+            self.local_data_location, index_col=self.index_column, low_memory=False
+        )
+        return self._data
 
     @property
     def train_data(self) -> pd.DataFrame:
@@ -120,7 +125,7 @@ class DataLoader:
         """
         # NOTE: When making this general, maybe let this be overwritable?
         features = []
-        column_ranges = [
+        column_ranges: List[Dict] = [
             {"prefix": "feature_intelligence", "range": range(1, 12 + 1)},
             {"prefix": "feature_charisma", "range": range(1, 86 + 1)},
             {"prefix": "feature_strength", "range": range(1, 38 + 1)},
@@ -147,12 +152,14 @@ class DataLoader:
         Returns:
             None
         """
+        LOGGER.debug("Splitting the train, validation and test data")
         assert 0 < validation_frac + test_frac < 1
         assert validation_frac >= 0 and test_frac >= 0
         test_val_frac = validation_frac + test_frac
         train, validation = train_test_split(
             self.data, test_size=test_val_frac, random_state=512
         )  # Set the random state so we can get consistent results
+        LOGGER.debug("Done splitting train vs validation-test")
 
         validation_over_test_frac = validation_frac / test_val_frac
         if validation_over_test_frac == 1:
@@ -164,6 +171,7 @@ class DataLoader:
             validation, test = train_test_split(
                 validation, train_size=validation_over_test_frac, random_state=512
             )  # Set the random state so we can get consistent results
+        LOGGER.debug("Done splitting validation and test")
 
         self._train_data = train
         self._validation_data = validation
@@ -180,6 +188,8 @@ class DataLoader:
             a list of DataLoader objects: The combined data of the DataLoaders is equal to the data of the current DataLoader.
                 Then number of objects is equal to number_of_batches
         """
+        LOGGER.debug("Splitting the data in batches")
+
         # Suffle the df first so it's actually random
         intermediate = self.data.sample(frac=1)
         number_of_rows = intermediate.shape[0]
@@ -196,5 +206,7 @@ class DataLoader:
                     test_frac=self.test_frac,
                 )
             )
+
+        LOGGER.debug("Done splitting the data in batches")
 
         return list_of_data_loaders
