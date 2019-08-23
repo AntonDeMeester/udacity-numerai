@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date
 import logging
 import typing
-from typing import List, Tuple, Optional, Iterable, Dict
+from typing import List, Tuple, Optional, Iterable, Dict, Any
 
 # Data science libraries
 import numpy as np
@@ -63,6 +63,9 @@ class DataLoader:
         self.validation_frac = validation_frac
         self.test_frac = test_frac
         self.feature_columns = self._get_feature_columns()
+
+        # Allow caches to be set on the data (e.g. s3 locations)
+        self.cache = {}
 
         # We will only load the data when required
         self._data = data
@@ -210,3 +213,37 @@ class DataLoader:
         LOGGER.debug("Done splitting the data in batches")
 
         return list_of_data_loaders
+
+    def add_to_cache(self, data_type: str, data_name: str, data: Any) -> None:
+        """
+        Adds data to the cache
+        For example could be used to cache s3 locations of the uploaded data instead of 
+        adding the data multiple time to the data.
+
+        Arguments:
+            data_type: The type of data. One of 'local', 's3'.
+            data_name: The name of the data, e.g. validation, X_test...
+            data: The data to cache.
+        """
+        if data_type not in self.cache:
+            self.cache[data_type] = {}
+
+        self.cache[data_type][data_name] = data
+
+    def get_from_cache(self, data_type: str, data_name: str) -> Optional[Any]:
+        """
+        Gets data from cache.
+        The data should have been set with add_to_cache beforehand.
+        Returns None is it is not present.
+
+        Arguments:
+            data_type: The type of data. One of 'local', 's3_flat', 's3_input'
+            data_name: The name of the data, e.g. validation, X_test...
+        
+        Returns:
+            data: the cached data
+        """
+        try:
+            return self.cache[data_type][data_name]
+        except KeyError:
+            return None

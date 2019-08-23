@@ -126,26 +126,6 @@ class Sagemaker:
             local_data_file, bucket=bucket, key_prefix=prefix
         )
 
-    def upload_data_for_model( self,
-        local_data_file: str,
-        bucket: Optional[str] = None,
-        prefix: Optional[str] = None,
-        content_type: str = "text/csv"
-    ) -> s3_input:
-        """
-        Uploads the data from the local data file to S3. Returns an S3_input object
-
-        Argument:
-            local_data_file: the location of the data
-            bucket: The bucket to upload to. Defaulted to the own default bucket
-            prefix: The prefix to use to upload to. Defaulted to the own default bucket
-
-        Returns:
-            The s3 input object with the correct data type
-        """
-        location = self.upload_data(local_data_file, bucket, prefix)
-        return s3_input(location, content_type=content_type)
-
     def download_data(self, 
         file_name: str,
         local_file_directory: str,
@@ -173,6 +153,6 @@ class Sagemaker:
         s3_client.download_file(
             Bucket=self.bucket,
             Key=key,
-            FileName=local_file_name
+            Filename=local_file_name
         )
         return local_file_name

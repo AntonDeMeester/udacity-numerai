@@ -2,7 +2,7 @@
 from datetime import date
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 # Data science
 import pandas as pd
@@ -59,8 +59,8 @@ class AwsLinearLearner(BaseModel):
         if output_path is not None:
             self.output_path = output_path
         else:
-            self.output_path = "s3://{bucket}/{prefix}/linear_learner".format(
-                bucket=self.executor.bucket, prefix=self.prefix
+            self.output_path = "s3://{bucket}/{prefix}".format(
+                bucket=self.executor.bucket, prefix=self.output_data_prefix
             )
 
         self._model: Optional[Estimator] = None
@@ -122,8 +122,8 @@ class AwsLinearLearner(BaseModel):
         return model
 
     def _prepare_data(
-        self, data_name: str, x_data: DataFrame, y_data: Optional[DataFrame] = None, s3_input: bool = True
-    ) -> s3_input:
+        self, data_name: str, x_data: DataFrame, y_data: Optional[DataFrame] = None, s3_input_type: bool = True
+    ) -> Union[s3_input, str]:
         """
         Prepares the data to use in the learner.
 
@@ -132,22 +132,44 @@ class AwsLinearLearner(BaseModel):
             y_data: (optional) the output of the data. Don't provide for predictions
 
         Returns:
-            The s3 input of the data
+            The s3 input or s3 location of the data
         """
         LOGGER.info("Preparing data for usage")
-        if not os.path.exists(self.local_save_folder):
-            os.makedirs(self.local_save_folder)
 
-        temp_location = f"{self.local_save_folder}/{data_name}.csv"
-        if y_data is not None:
-            data = pd.concat([y_data, x_data], axis=1)
+        # Try to get from cache
+        return_data = self.data.get_from_cache("s3", data_name)
+        if return_data is not None:
+            LOGGER.debug("Found s3 data in cache.")
+            if s3_input_type:
+                return s3_input(return_data, content_type="text.csv")
+            return return_data
+
+        # Try to get local data from cache
+        temp_location = self.data.get_from_cache("local", data_name)
+        # If not available, save to local
+        if temp_location is None:
+            if not os.path.exists(self.local_save_folder):
+                os.makedirs(self.local_save_folder)
+            temp_location = f"{self.local_save_folder}/{data_name}.csv"
+            if y_data is not None:
+                data = pd.concat([y_data, x_data], axis=1)
+            else:
+                data = x_data
+            LOGGER.debug("Writing data to local machine")
+            data.to_csv(temp_location, index=False, header=False)
         else:
-            data = x_data
-        LOGGER.debug("Writing data to local machine")
-        data.to_csv(temp_location, index=False, header=False)
-        if s3_input:
-            return self.executor.upload_data_for_model(temp_location, prefix=self.input_data_prefix, content_type="text/csv")
-        return self.executor.upload_data(temp_location, prefix=self.input_data_prefix)
+            # Log if present
+            LOGGER.debug("Found local data location in cache.")
+        
+        # Upload to S3
+        return_data = self.executor.upload_data(temp_location, prefix=self.input_data_prefix)
+        # Put in cache
+        self.data.add_to_cache("s3", data_name, return_data)
+
+        if s3_input_type:
+            return_data = s3_input(return_data, content_type="text/csv")
+
+        return return_data
 
     def load_model(self, model_name: str) -> None:
         """
@@ -166,6 +188,7 @@ class AwsLinearLearner(BaseModel):
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
+        Also adds the output data to the cache.
 
         Arguments:
             test: whether to only use the test from the data loader or to use the full data loader
@@ -174,30 +197,37 @@ class AwsLinearLearner(BaseModel):
             The predicted dataframe
         """
         LOGGER.info(f"Predicting new data")
+        """
         if self._transformer is None:
             self._transformer = self._get_transformer()
+        """
         
         if test:
             data = self.data.test_data
         else:
             data = self.data.data
 
+        """
         # Get the data and upload to S3
         X_test = data.loc[:, self.data.feature_columns]
-        s3_location_test = self._prepare_data("test", X_test, s3_input=False)
+        s3_location_test = self._prepare_data("test", X_test, s3_input_type=False)
 
         # Start the job
+        LOGGER.info("Creating the transformer job")
         self._transformer.transform(
             s3_location_test,
             content_type="text/csv",
             split_type="Line"
         )
+        LOGGER.info("Waiting for the transformer job")
         self._transformer.wait()
+        """
 
         # Download the data
+        LOGGER.info("Loading the results of the transformer job")
         Y_test = self._load_results("test")
-        Y_test.index = data.index
-        Y_test.columns = data.output_column
+        # Y_test.index = data.index
+        # Y_test.columns = self.data.output_column
 
         return Y_test
 
@@ -215,10 +245,23 @@ class AwsLinearLearner(BaseModel):
         )
 
     def _load_results(self, file_name: str) -> DataFrame:
+        # Add S3 results to cache
+        prediction_file_name = f"{file_name}.csv.out"
+        s3_location = f"s3://{self.executor.bucket}/{self.output_data_prefix}/{prediction_file_name}"
+        self.data.add_to_cache("s3", "test_predictions", s3_location)
+
+        # Download from S3
         local_file_location = self.executor.download_data(
-            f"{file_name}.csv.out", 
+            prediction_file_name, 
             self.local_save_folder,
-            prefix=self.output_data_prefix,
+            # prefix=self.output_data_prefix,
+            prefix="data/linear_learner/linear_learner/output_predictions",
         )
-        return pd.read_csv(local_file_location, header=None, index=None)
+        # Add local files to cache
+        self.data.add_to_cache("local", "test_predictions", local_file_location)
+
+        # Load dataframe and put in cache
+        df = pd.read_csv(local_file_location, header=None)
+        self.data.add_to_cache("dataframe", "test_predictions", df)
+        return df
 
