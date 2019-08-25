@@ -1,4 +1,5 @@
 # Python libraries
+from abc import ABC
 from datetime import date
 import logging
 import os
@@ -23,36 +24,40 @@ from .base import BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
-class AwsLinearLearner(BaseModel):
+
+class AwsEstimator(BaseModel, ABC):
     """
-    The AWS Linear Learner model.
+    The general implementation of a AWS Estimator model:
+    https://sagemaker.readthedocs.io/en/stable/estimators.html
+    https://docs.aws.amazon.com/sagemaker/latest/dg/algos.html
+
+    This is an abstract class. Please subclass it and set the following class parameters:
+        * container_name
+        * default_hyperparameters
+        * name
     """
 
-    default_hyperparameters: Dict = {
-        "predictor_type": "regressor",
-        "feature_dim": 1,
-        "epochs": 10,
-        "loss": "auto"
-    }
+    default_hyperparameters = NotImplemented
+    container_name = NotImplemented
+    name = NotImplemented
 
     def __init__(
         self,
         data: DataLoader,
         aws_executor: Sagemaker,
         output_path=None,
-        local_save_folder="data/temp/linear_learner",
+        local_save_folder=None,
     ) -> None:
         """
         Initializes the AwsLinearLearner with data and an executor.
         This will not yet do any training or data uploading.
         """
-        LOGGER.info("Initializing AWS Liner learner model")
+        LOGGER.info(f"Initializing AWS Estimator {self.name} model")
 
         self.data = data
         self.executor = aws_executor
-        self.local_save_folder = local_save_folder
         self.model_name = None
-        self.prefix = f"{self.executor.prefix}/linear_learner"
+        self.prefix = f"{self.executor.prefix}/{self.name}"
         self.input_data_prefix = f"{self.prefix}/input_data"
         self.output_data_prefix = f"{self.prefix}/output_data"
 
@@ -62,6 +67,10 @@ class AwsLinearLearner(BaseModel):
             self.output_path = "s3://{bucket}/{prefix}".format(
                 bucket=self.executor.bucket, prefix=self.output_data_prefix
             )
+        if local_save_folder is not None:
+            self.local_save_folder = local_save_folder
+        else:
+            self.local_save_folder = f"data/temp/{self.name}"
 
         self._model: Optional[Estimator] = None
         self._transformer: Optional[Transformer] = None
@@ -72,24 +81,23 @@ class AwsLinearLearner(BaseModel):
         Trains the model, with the data provided
 
         Arguments:
-            hyperparameters: The hyperparameters to provide to the LinearLearner model.
-                See https://sagemaker.readthedocs.io/en/stable/linear_learner.html
+            hyperparameters: The hyperparameters to provide to the Estimator model.
+                See https://docs.aws.amazon.com/sagemaker/latest/dg/algos.html
+                And specific implementations
         """
         LOGGER.info("Starting to train model.")
         self._model = self._get_model(hyperparameters)
 
         # Get the data and upload to S3
-        # Y_train = self.data.train_data.loc[:, self.data.output_column]
-        # X_train = self.data.train_data.loc[:, self.data.feature_columns]
-        # s3_input_train = self._prepare_data("train", X_train, Y_train)
-        s3_input_train = s3_input('s3://sagemaker-eu-west-1-729071960169/data/input_data/train.csv', content_type="text/csv")
+        Y_train = self.data.train_data.loc[:, self.data.output_column]
+        X_train = self.data.train_data.loc[:, self.data.feature_columns]
+        s3_input_train = self._prepare_data("train", X_train, Y_train)
 
-        # Y_validation = self.data.validation_data.loc[:, self.data.output_column]
-        # X_validation = self.data.validation_data.loc[:, self.data.feature_columns]
-        # s3_input_validation = self._prepare_data(
-        #     "validation", X_validation, Y_validation
-        # )
-        s3_input_validation = s3_input('s3://sagemaker-eu-west-1-729071960169/data/linear_learner/input_data/validation.csv', content_type="text/csv")
+        Y_validation = self.data.validation_data.loc[:, self.data.output_column]
+        X_validation = self.data.validation_data.loc[:, self.data.feature_columns]
+        s3_input_validation = self._prepare_data(
+            "validation", X_validation, Y_validation
+        )
         
         LOGGER.info("Starting to fit model")
         self._model.fit({"train": s3_input_train, "validation": s3_input_validation})
@@ -100,13 +108,13 @@ class AwsLinearLearner(BaseModel):
         Initializes the model. This can be used to train later or attach an existing model
 
         Arguments:
-            hyperparameters: The hyperparameters for the LinearLearner model
+            hyperparameters: The hyperparameters for the Estimator model
 
         Returns:
             model: The initialized model
         """
         container = get_image_uri(
-            self.executor.boto_session.region_name, "linear-learner"
+            self.executor.boto_session.region_name, self.container_name
         )
         model = Estimator(
             container,
@@ -115,7 +123,6 @@ class AwsLinearLearner(BaseModel):
         )
         used_hyperparameters = self.default_hyperparameters
         used_hyperparameters["feature_dim"] = len(self.data.feature_columns)
-        used_hyperparameters["output_path"] = self.output_path
         used_hyperparameters.update(hyperparameters)
 
         model.set_hyperparameters(**used_hyperparameters)
@@ -139,9 +146,9 @@ class AwsLinearLearner(BaseModel):
         # Try to get from cache
         return_data = self.data.get_from_cache("s3", data_name)
         if return_data is not None:
-            LOGGER.debug("Found s3 data in cache.")
+            LOGGER.info("Found s3 data in cache.")
             if s3_input_type:
-                return s3_input(return_data, content_type="text.csv")
+                return s3_input(return_data, content_type="text/csv")
             return return_data
 
         # Try to get local data from cache
@@ -155,11 +162,11 @@ class AwsLinearLearner(BaseModel):
                 data = pd.concat([y_data, x_data], axis=1)
             else:
                 data = x_data
-            LOGGER.debug("Writing data to local machine")
+            LOGGER.info("Writing data to local machine")
             data.to_csv(temp_location, index=False, header=False)
         else:
             # Log if present
-            LOGGER.debug("Found local data location in cache.")
+            LOGGER.info("Found local data location in cache.")
         
         # Upload to S3
         return_data = self.executor.upload_data(temp_location, prefix=self.input_data_prefix)
@@ -184,30 +191,27 @@ class AwsLinearLearner(BaseModel):
             sagemaker_session=self.executor.session
         )
 
-    def batch_predict(self, test: bool = True) -> DataFrame:
+    def batch_predict(self, all_data: bool = False) -> DataFrame:
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
         Also adds the output data to the cache.
 
         Arguments:
-            test: whether to only use the test from the data loader or to use the full data loader
+            all_data: whether to use all the data or just the test from the data loader
         
         Returns:
             The predicted dataframe
         """
         LOGGER.info(f"Predicting new data")
-        """
         if self._transformer is None:
             self._transformer = self._get_transformer()
-        """
         
-        if test:
-            data = self.data.test_data
-        else:
+        if all_data:
             data = self.data.data
+        else:
+            data = self.data.test_data
 
-        """
         # Get the data and upload to S3
         X_test = data.loc[:, self.data.feature_columns]
         s3_location_test = self._prepare_data("test", X_test, s3_input_type=False)
@@ -221,13 +225,10 @@ class AwsLinearLearner(BaseModel):
         )
         LOGGER.info("Waiting for the transformer job")
         self._transformer.wait()
-        """
 
         # Download the data
         LOGGER.info("Loading the results of the transformer job")
         Y_test = self._load_results("test")
-        # Y_test.index = data.index
-        # Y_test.columns = self.data.output_column
 
         return Y_test
 
@@ -241,7 +242,7 @@ class AwsLinearLearner(BaseModel):
         )
         return self._model.transformer(
             **self.executor.default_transformer_kwargs,
-            output_path=f"{self.output_path}/output_predictions"
+            output_path=f"{self.output_path}"
         )
 
     def _load_results(self, file_name: str) -> DataFrame:
@@ -254,8 +255,7 @@ class AwsLinearLearner(BaseModel):
         local_file_location = self.executor.download_data(
             prediction_file_name, 
             self.local_save_folder,
-            # prefix=self.output_data_prefix,
-            prefix="data/linear_learner/linear_learner/output_predictions",
+            prefix=self.output_data_prefix,
         )
         # Add local files to cache
         self.data.add_to_cache("local", "test_predictions", local_file_location)

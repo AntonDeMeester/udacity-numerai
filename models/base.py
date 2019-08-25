@@ -1,3 +1,5 @@
+from abc import ABC
+
 # Data science libraries
 from pandas import DataFrame
 
@@ -5,12 +7,14 @@ from pandas import DataFrame
 from data_processing.data_loader import DataLoader
 
 
-class BaseModel:
+class BaseModel(ABC):
     """
     The base model to be used in this project.
+
+    This is an abstract class. Please subclass it to implement each method.
     """
 
-    def __init__(self, data: DataLoader) -> None:
+    def __init__(self, data: DataLoader, *args, **kwargs) -> None:
         """
         Loads the data.
 
@@ -19,19 +23,19 @@ class BaseModel:
         """
         self.data = data
 
-    def train(self) -> None:
+    def train(self, *args, **kwargs) -> None:
         """
         Trains the model, with the data provided
         """
         return NotImplemented
 
-    def load_model(self) -> None:
+    def load_model(self, *args, **kwargs) -> None:
         """
         Load the already trained model to not have to train again.
         """
         return NotImplemented
 
-    def predict(self, test: bool = True) -> DataFrame:
+    def predict(self, all_date: bool = False, *args, **kwargs) -> DataFrame:
         """
         Predict based on an already trained model.
 

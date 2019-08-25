@@ -65,7 +65,7 @@ class DataLoader:
         self.feature_columns = self._get_feature_columns()
 
         # Allow caches to be set on the data (e.g. s3 locations)
-        self.cache = {}
+        self.cache: Dict[str, Any] = {}
 
         # We will only load the data when required
         self._data = data
@@ -155,14 +155,14 @@ class DataLoader:
         Returns:
             None
         """
-        LOGGER.debug("Splitting the train, validation and test data")
+        LOGGER.info("Splitting the train, validation and test data")
         assert 0 < validation_frac + test_frac < 1
         assert validation_frac >= 0 and test_frac >= 0
         test_val_frac = validation_frac + test_frac
         train, validation = train_test_split(
             self.data, test_size=test_val_frac, random_state=512
         )  # Set the random state so we can get consistent results
-        LOGGER.debug("Done splitting train vs validation-test")
+        LOGGER.info("Done splitting train vs validation-test")
 
         validation_over_test_frac = validation_frac / test_val_frac
         if validation_over_test_frac == 1:
@@ -174,7 +174,7 @@ class DataLoader:
             validation, test = train_test_split(
                 validation, train_size=validation_over_test_frac, random_state=512
             )  # Set the random state so we can get consistent results
-        LOGGER.debug("Done splitting validation and test")
+        LOGGER.info("Done splitting validation and test")
 
         self._train_data = train
         self._validation_data = validation
@@ -191,7 +191,7 @@ class DataLoader:
             a list of DataLoader objects: The combined data of the DataLoaders is equal to the data of the current DataLoader.
                 Then number of objects is equal to number_of_batches
         """
-        LOGGER.debug("Splitting the data in batches")
+        LOGGER.info("Splitting the data in batches")
 
         # Suffle the df first so it's actually random
         intermediate = self.data.sample(frac=1)
@@ -210,7 +210,7 @@ class DataLoader:
                 )
             )
 
-        LOGGER.debug("Done splitting the data in batches")
+        LOGGER.info("Done splitting the data in batches")
 
         return list_of_data_loaders
 
@@ -247,3 +247,37 @@ class DataLoader:
             return self.cache[data_type][data_name]
         except KeyError:
             return None
+
+    def score_data(self, Y_pred: DataFrame, all_data: bool= False) -> float:
+        """
+        Scores the data versus the predictions.
+        For numerai, corretation coefficient is used.
+
+        Arguments:
+            Y_pred: the predicted values
+            all_data: Whether to use the complete dataset to compare to, or just the test set
+
+        Returns:
+            The scoring metric (correlation coefficient)
+        """
+        if all_data:
+            Y_labels = self.data
+        else:
+            Y_labels = self.test_data
+        Y_labels = Y_labels.loc[:, self.output_column]
+        metric = self.score_correlation(Y_labels, Y_pred)
+        return metric
+
+    def score_correlation(self, labels: DataFrame, prediction: DataFrame) -> float:
+        """
+        Scores the correlation as defined by the Numerai tournament rules.
+
+        Arguments:
+            labels: The real labels of the output
+            prediction: The predicted labels
+
+        Returns:
+            The correlation coefficient
+        """
+        ranked_prediction = prediction.rank(pct=True, method="first")
+        return np.corrcoef(labels, ranked_prediction, rowvar=False)[0, 1]

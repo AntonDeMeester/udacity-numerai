@@ -121,7 +121,7 @@ class Sagemaker:
             bucket = self.bucket
         if prefix is None:
             prefix = self.prefix
-        LOGGER.debug("Uploading data to S3")
+        LOGGER.info("Uploading data to S3")
         return self.session.upload_data(
             local_data_file, bucket=bucket, key_prefix=prefix
         )
@@ -149,7 +149,7 @@ class Sagemaker:
             prefix = self.prefix
         key = f"{prefix}/{file_name}"
         local_file_name = os.path.join(local_file_directory, file_name)
-        LOGGER.debug(f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}")
+        LOGGER.info(f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}")
         s3_client.download_file(
             Bucket=self.bucket,
             Key=key,
