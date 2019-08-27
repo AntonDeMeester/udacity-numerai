@@ -7,12 +7,13 @@ from pandas import DataFrame
 # Local imports
 from .aws_base import AwsEstimator
 
+
 class AwsLinearLearner(AwsEstimator):
     default_hyperparameters: Dict = {
         "predictor_type": "regressor",
         "feature_dim": 1,
         "epochs": 10,
-        "loss": "auto"
+        "loss": "auto",
     }
     container_name: str = "linear-learner"
     name: str = "linear_learner"
@@ -25,8 +26,8 @@ class AwsLinearLearner(AwsEstimator):
         initial_df = super()._load_results(file_name)
         for _, row in initial_df.iterrows():
             try:
-                row[0] = row[0].replace('{"score":', '').replace("}", "")
+                row[0] = row[0].replace('{"score":', "").replace("}", "")
             except IndexError:
                 pass
-        initial_df = initial_df.astype('float32')
+        initial_df = initial_df.astype("float32")
         return initial_df

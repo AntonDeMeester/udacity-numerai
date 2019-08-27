@@ -126,7 +126,8 @@ class Sagemaker:
             local_data_file, bucket=bucket, key_prefix=prefix
         )
 
-    def download_data(self, 
+    def download_data(
+        self,
         file_name: str,
         local_file_directory: str,
         bucket: Optional[str] = None,
@@ -144,15 +145,13 @@ class Sagemaker:
         Returns:
             The local file location.
         """
-        s3_client = self.boto_session.client('s3')
+        s3_client = self.boto_session.client("s3")
         if prefix is None:
             prefix = self.prefix
         key = f"{prefix}/{file_name}"
         local_file_name = os.path.join(local_file_directory, file_name)
-        LOGGER.info(f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}")
-        s3_client.download_file(
-            Bucket=self.bucket,
-            Key=key,
-            Filename=local_file_name
+        LOGGER.info(
+            f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}"
         )
+        s3_client.download_file(Bucket=self.bucket, Key=key, Filename=local_file_name)
         return local_file_name

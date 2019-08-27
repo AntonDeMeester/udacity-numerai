@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 
 LOGGER = logging.getLogger(__name__)
 
+
 class DataLoader:
     """
     This class will load and manipulate the data.
@@ -248,7 +249,7 @@ class DataLoader:
         except KeyError:
             return None
 
-    def score_data(self, Y_pred: DataFrame, all_data: bool= False) -> float:
+    def score_data(self, Y_pred: DataFrame, all_data: bool = False) -> float:
         """
         Scores the data versus the predictions.
         For numerai, corretation coefficient is used.

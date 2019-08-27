@@ -15,6 +15,7 @@ from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.estimator import Estimator
 from sagemaker.predictor import RealTimePredictor
 from sagemaker.transformer import Transformer
+from sagemaker.tuner import HyperparameterTuner
 
 # Local imports
 from data_processing.data_loader import DataLoader
@@ -75,6 +76,7 @@ class AwsEstimator(BaseModel, ABC):
         self._model: Optional[Estimator] = None
         self._transformer: Optional[Transformer] = None
         self._predictor: Optional[RealTimePredictor] = None
+        self._tuner: Optional[HyperparameterTuner] = None
 
     def train(self, hyperparameters: Dict = {}) -> None:
         """
@@ -98,7 +100,7 @@ class AwsEstimator(BaseModel, ABC):
         s3_input_validation = self._prepare_data(
             "validation", X_validation, Y_validation
         )
-        
+
         LOGGER.info("Starting to fit model")
         self._model.fit({"train": s3_input_train, "validation": s3_input_validation})
         LOGGER.info("Done with fitting model")
@@ -129,7 +131,11 @@ class AwsEstimator(BaseModel, ABC):
         return model
 
     def _prepare_data(
-        self, data_name: str, x_data: DataFrame, y_data: Optional[DataFrame] = None, s3_input_type: bool = True
+        self,
+        data_name: str,
+        x_data: DataFrame,
+        y_data: Optional[DataFrame] = None,
+        s3_input_type: bool = True,
     ) -> Union[s3_input, str]:
         """
         Prepares the data to use in the learner.
@@ -167,9 +173,11 @@ class AwsEstimator(BaseModel, ABC):
         else:
             # Log if present
             LOGGER.info("Found local data location in cache.")
-        
+
         # Upload to S3
-        return_data = self.executor.upload_data(temp_location, prefix=self.input_data_prefix)
+        return_data = self.executor.upload_data(
+            temp_location, prefix=self.input_data_prefix
+        )
         # Put in cache
         self.data.add_to_cache("s3", data_name, return_data)
 
@@ -187,8 +195,7 @@ class AwsEstimator(BaseModel, ABC):
         """
         LOGGER.info(f"Loading already trained model {model_name}")
         self._model = Estimator.attach(
-            training_job_name=model_name,
-            sagemaker_session=self.executor.session
+            training_job_name=model_name, sagemaker_session=self.executor.session
         )
 
     def batch_predict(self, all_data: bool = False) -> DataFrame:
@@ -206,7 +213,7 @@ class AwsEstimator(BaseModel, ABC):
         LOGGER.info(f"Predicting new data")
         if self._transformer is None:
             self._transformer = self._get_transformer()
-        
+
         if all_data:
             data = self.data.data
         else:
@@ -219,9 +226,7 @@ class AwsEstimator(BaseModel, ABC):
         # Start the job
         LOGGER.info("Creating the transformer job")
         self._transformer.transform(
-            s3_location_test,
-            content_type="text/csv",
-            split_type="Line"
+            s3_location_test, content_type="text/csv", split_type="Line"
         )
         LOGGER.info("Waiting for the transformer job")
         self._transformer.wait()
@@ -232,17 +237,16 @@ class AwsEstimator(BaseModel, ABC):
 
         return Y_test
 
-        
     def _get_transformer(self) -> Transformer:
         """
         Returns a transformer based on the current model
         """
-        assert self._model is not None, (
-            "Cannot create a transformer if the model is not yet set."
-        )
+        assert (
+            self._model is not None
+        ), "Cannot create a transformer if the model is not yet set."
         return self._model.transformer(
             **self.executor.default_transformer_kwargs,
-            output_path=f"{self.output_path}"
+            output_path=f"{self.output_path}",
         )
 
     def _load_results(self, file_name: str) -> DataFrame:
@@ -253,9 +257,7 @@ class AwsEstimator(BaseModel, ABC):
 
         # Download from S3
         local_file_location = self.executor.download_data(
-            prediction_file_name, 
-            self.local_save_folder,
-            prefix=self.output_data_prefix,
+            prediction_file_name, self.local_save_folder, prefix=self.output_data_prefix
         )
         # Add local files to cache
         self.data.add_to_cache("local", "test_predictions", local_file_location)
@@ -265,3 +267,16 @@ class AwsEstimator(BaseModel, ABC):
         self.data.add_to_cache("dataframe", "test_predictions", df)
         return df
 
+    def tune_model(self, hyperparameter_tuning: Dict[str, Any]):
+        """
+        Tunes the current Estimator with the provided hyperparameters
+        """
+        used_hyperparameter_tuning = self.default_hyperparameter_tuning
+        used_hyperparameters = self.default_hyperparameters
+        used_hyperparameters["feature_dim"] = len(self.data.feature_columns)
+        used_hyperparameters.update(hyperparameters)
+
+        if self._model is None:
+            self._model = self._get_model()
+
+        self._tuner = HyperparameterTuner(etimator=self._get_model())

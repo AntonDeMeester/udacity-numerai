@@ -13,6 +13,7 @@ pandas = "*"
 sklearn = "*"
 boto3 = "*"
 sagemaker = "*"
+numerapi = "*"
 
 [requires]
 python_version = "3.7"

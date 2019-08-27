@@ -4,10 +4,12 @@ from typing import Dict
 # Local imports
 from .aws_base import AwsEstimator
 
+
 class AwsXGBoost(AwsEstimator):
     """
     XG Boost implementation for AWS
     """
+
     default_hyperparameters: Dict = {
         "max_depth": 5,
         "eta": 0.2,

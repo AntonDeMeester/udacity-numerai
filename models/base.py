@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Dict, Any
 
 # Data science libraries
 from pandas import DataFrame
@@ -41,5 +42,14 @@ class BaseModel(ABC):
 
         Arguments:
             test: whether to only use the test from the data loader or to use the full data loader
+        """
+        return NotImplemented
+
+    def tune(self, hyperparameter_tuning: Dict[str, Any], *args, **kwargs) -> None:
+        """
+        Tunes the current models with the provided hyperparameter tuning dict.
+
+        Arguments:
+            hyperparameter_tuning: The parameters to tune.
         """
         return NotImplemented
