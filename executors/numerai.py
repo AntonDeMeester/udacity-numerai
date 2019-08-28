@@ -1,5 +1,6 @@
 # General python imports
 from abc import ABC
+import logging
 import os
 from typing import Optional, Dict, Any
 
@@ -10,6 +11,8 @@ from pandas import DataFrame
 import numerapi
 
 
+LOGGER = logging.getLogger(__name__)
+
 class Numerai:
     """
     Executor class to deal with Numerai uploads and downloads
@@ -18,13 +21,14 @@ class Numerai:
     """
 
     def __init__(
-        self, public_id: Optional[str] = None, secret_key: str = Optional[None]
+        self, public_id: Optional[str] = None, secret_key: Optional[str] = None
     ):
         """
         Initializes the Numerai class to execute numerai things.
         Can take the public id and secret key, else will load them from the env variables
         """
         if public_id is None:
+            LOGGER.info("Loading Numerai credentials from environment.")
             public_id = os.environ.get("NUMERAI_PUBLIC_ID", None)
         if secret_key is None:
             secret_key = os.environ.get("NUMERAI_SECRET_KEY", None)
@@ -51,8 +55,11 @@ class Numerai:
         Returns:
             local_file_location: The location of the file locally.
         """
-        local_file_location = os.path.join(local_folder, f"{name}.csv")
-        predictions.to_csv(local_file_location, index=True, header=True)
+        if not os.path.exists(local_folder):
+            os.makedirs(local_folder)
+        local_file_location = f"{local_folder}/{name}.csv"
+        LOGGER.info(f"Saving predictions to {local_file_location}")
+        predictions.to_csv(local_file_location, index=True, header=True, index_label="id")
         return local_file_location
 
     def download_latest_data(self, local_folder: str, name: str = None) -> str:
@@ -86,6 +93,7 @@ class Numerai:
             success: Whether the upload was successful
         """
         local_file = self.format_predictions(predictions, local_folder, name)
+        LOGGER.info("Uploading predictions to Numerai")
         return self.upload_predictions_csv(local_file)
 
     def upload_predictions_csv(self, file_location: str) -> bool:

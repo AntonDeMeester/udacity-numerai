@@ -3,7 +3,7 @@ from abc import ABC
 from datetime import date
 import logging
 import os
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Any
 
 # Data science
 import pandas as pd
@@ -198,13 +198,14 @@ class AwsEstimator(BaseModel, ABC):
             training_job_name=model_name, sagemaker_session=self.executor.session
         )
 
-    def batch_predict(self, all_data: bool = False) -> DataFrame:
+    def batch_predict(self, data: Optional[DataLoader] = None, all_data: bool = False) -> DataFrame:
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
         Also adds the output data to the cache.
 
         Arguments:
+            data: the data to load. If not provided, is defaulted to the local data
             all_data: whether to use all the data or just the test from the data loader
         
         Returns:
@@ -214,10 +215,14 @@ class AwsEstimator(BaseModel, ABC):
         if self._transformer is None:
             self._transformer = self._get_transformer()
 
+        if data is None:
+            data = self.data
+
         if all_data:
-            data = self.data.data
+            data = data.data
         else:
-            data = self.data.test_data
+            data = data.test_data
+        
 
         # Get the data and upload to S3
         X_test = data.loc[:, self.data.feature_columns]

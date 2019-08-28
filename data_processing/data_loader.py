@@ -249,6 +249,43 @@ class DataLoader:
         except KeyError:
             return None
 
+    def add_predictions(self, Y_pred: DataFrame, name: str, all_data: bool = False) -> DataFrame:
+        """
+        Adds the predictions to the data, also formats it.
+
+        Arguments:
+            Y_pred: dataframe with the predictions
+            all_data: whether all data was used
+
+        Returns:
+            The formatted DataFrame
+        """
+        Y_pred = self.format_predictions(Y_pred, all_data)
+        self.add_to_cache("predictions", name, Y_pred)
+        return Y_pred
+
+    def format_predictions(self, Y_pred: DataFrame, all_data: bool = False) -> DataFrame:
+        """
+        Formats the predictions by setting index and columns
+
+        Arguments:
+            Y_pred: dataframe with the predictions
+            all_data: whether all data was used
+
+        Returns:
+            The formatted DataFrame
+        """
+        if all_data:
+            Y_labels = self.data
+        else:
+            Y_labels = self.test_data
+        # Format index and columns
+        Y_pred = Y_pred.set_index(Y_labels.index, inplace=False)
+        output_columns = [column.replace("target", "prediction") for column in [self.output_column]]
+        Y_pred = Y_pred.set_axis(output_columns, axis=1, inplace=False)
+        return Y_pred
+
+
     def score_data(self, Y_pred: DataFrame, all_data: bool = False) -> float:
         """
         Scores the data versus the predictions.

@@ -1,9 +1,12 @@
 import logging
+import os
 
 from data_processing.data_loader import DataLoader
 from models.aws_linear_learner import AwsLinearLearner
 from models.aws_xgboost import AwsXGBoost
 from executors.sagemaker import Sagemaker
+from executors.numerai import Numerai
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -32,18 +35,27 @@ data_loader.add_to_cache(
 
 linear_learner = AwsLinearLearner(data=data_loader, aws_executor=sagemaker)
 # linear_learner.train()
-# linear_learner.load_model('linear-learner-2019-08-25-10-23-16-401')
+linear_learner.load_model('linear-learner-2019-08-25-10-23-16-401')
 # Y_test_ll = linear_learner.batch_predict()
 Y_test_ll = linear_learner._load_results("test")  # test
 
 xgboost = AwsXGBoost(data=data_loader, aws_executor=sagemaker)
 # xgboost.train()
-# xgboost.load_model('xgboost-2019-08-25-10-48-40-209')
+xgboost.load_model('xgboost-2019-08-25-10-48-40-209')
 # Y_test_xg = xgboost.batch_predict()
 Y_test_xgb = xgboost._load_results("test")  # test
 
 score_ll = data_loader.score_data(Y_test_ll)
 score_xgb = data_loader.score_data(Y_test_xgb)
 
+Y_test_ll = data_loader.format_predictions(Y_test_ll)
+Y_test_xgb = data_loader.format_predictions(Y_test_xgb)
+
 print(f"The linear learner scored {score_ll}.")
 print(f"The xgboost model scored {score_xgb}.")
+
+production_data = DataLoader(local_data_location="data/numerai_tournement.csv")
+Y_pred_prod = xgboost.batch_predict(data=production_data, all_data=True)
+
+numerai = Numerai()
+numerai.upload_predictions(Y_pred_prod, local_folder="data/temp/predictions")
