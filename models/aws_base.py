@@ -39,6 +39,13 @@ class AwsEstimator(BaseModel, ABC):
     """
 
     default_hyperparameters = NotImplemented
+    default_hyperparameter_tuning = NotImplemented
+    default_tuning_job_config = {
+        "max_jobs": 3,
+        "max_parallel_jobs": 3,
+        "objective_metric_name": 'validation:rmse',
+        "objective_type": "Minimize"
+    }
     container_name = NotImplemented
     name = NotImplemented
 
@@ -198,7 +205,7 @@ class AwsEstimator(BaseModel, ABC):
             training_job_name=model_name, sagemaker_session=self.executor.session
         )
 
-    def batch_predict(self, data: Optional[DataLoader] = None, all_data: bool = False) -> DataFrame:
+    def batch_predict(self, data_loader: Optional[DataLoader] = None, all_data: bool = False, name : str = "test") -> DataFrame:
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
@@ -215,18 +222,18 @@ class AwsEstimator(BaseModel, ABC):
         if self._transformer is None:
             self._transformer = self._get_transformer()
 
-        if data is None:
-            data = self.data
+        if data_loader is None:
+            data_loader = self.data
 
         if all_data:
-            data = data.data
+            data = data_loader.data
         else:
-            data = data.test_data
+            data = data_loader.test_data
         
 
         # Get the data and upload to S3
-        X_test = data.loc[:, self.data.feature_columns]
-        s3_location_test = self._prepare_data("test", X_test, s3_input_type=False)
+        X_test = data.loc[:, data_loader.feature_columns]
+        s3_location_test = self._prepare_data(name, X_test, s3_input_type=False)
 
         # Start the job
         LOGGER.info("Creating the transformer job")
@@ -238,7 +245,9 @@ class AwsEstimator(BaseModel, ABC):
 
         # Download the data
         LOGGER.info("Loading the results of the transformer job")
-        Y_test = self._load_results("test")
+        Y_test = self._load_results(name)
+
+        Y_test = data_loader.format_predictions(Y_test, all_data=all_data)
 
         return Y_test
 
@@ -249,6 +258,9 @@ class AwsEstimator(BaseModel, ABC):
         assert (
             self._model is not None
         ), "Cannot create a transformer if the model is not yet set."
+        if self._tuner is not None:
+            LOGGER.info("Loading best model from tuning job")
+            self.load_model(self._tuner.best_training_job())
         return self._model.transformer(
             **self.executor.default_transformer_kwargs,
             output_path=f"{self.output_path}",
@@ -272,16 +284,40 @@ class AwsEstimator(BaseModel, ABC):
         self.data.add_to_cache("dataframe", "test_predictions", df)
         return df
 
-    def tune_model(self, hyperparameter_tuning: Dict[str, Any]):
+    def tune(self, tuning_job_parameters: Dict[str, Any] = {}, hyperparameters: Dict[str, Any] = None, hyperparameter_tuning: Dict[str, Any] = None):
         """
         Tunes the current Estimator with the provided hyperparameters
         """
-        used_hyperparameter_tuning = self.default_hyperparameter_tuning
-        used_hyperparameters = self.default_hyperparameters
-        used_hyperparameters["feature_dim"] = len(self.data.feature_columns)
-        used_hyperparameters.update(hyperparameters)
+        LOGGER.info("Starting the hyperparameter tuning.")
+
+        if hyperparameters is None:
+            hyperparameters = self.default_hyperparameters
+        hyperparameters["feature_dim"] = len(self.data.feature_columns)
+        if hyperparameter_tuning is None:
+            hyperparameter_tuning = self.default_hyperparameter_tuning
+        used_tuning_job_parameters = {**self.default_tuning_job_config, **tuning_job_parameters}
 
         if self._model is None:
-            self._model = self._get_model()
+            self._model = self._get_model(hyperparameters)
 
-        self._tuner = HyperparameterTuner(etimator=self._get_model())
+        self._tuner = HyperparameterTuner(
+            estimator=self._model,
+            **used_tuning_job_parameters,
+            hyperparameter_ranges=hyperparameter_tuning
+        )
+
+        # Get the data and upload to S3
+        Y_train = self.data.train_data.loc[:, self.data.output_column]
+        X_train = self.data.train_data.loc[:, self.data.feature_columns]
+        s3_input_train = self._prepare_data("train", X_train, Y_train)
+
+        Y_validation = self.data.validation_data.loc[:, self.data.output_column]
+        X_validation = self.data.validation_data.loc[:, self.data.feature_columns]
+        s3_input_validation = self._prepare_data(
+            "validation", X_validation, Y_validation
+        )
+
+        LOGGER.info("Starting to tune hyperparameters")
+        self._tuner.fit({"train": s3_input_train, "validation": s3_input_validation})
+        self._tuner.wait()
+        LOGGER.info("Done with the tuning job")

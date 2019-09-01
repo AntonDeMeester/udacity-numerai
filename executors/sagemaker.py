@@ -149,9 +149,13 @@ class Sagemaker:
         if prefix is None:
             prefix = self.prefix
         key = f"{prefix}/{file_name}"
+        print(file_name)
+        print(local_file_directory)
         local_file_name = os.path.join(local_file_directory, file_name)
         LOGGER.info(
             f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}"
         )
+        if not os.path.exists(local_file_directory):
+            os.makedirs(local_file_directory)
         s3_client.download_file(Bucket=self.bucket, Key=key, Filename=local_file_name)
         return local_file_name

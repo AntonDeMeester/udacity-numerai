@@ -1,11 +1,18 @@
 import logging
 import os
+from typing import List
+
+import pandas as pd
 
 from data_processing.data_loader import DataLoader
-from models.aws_linear_learner import AwsLinearLearner
-from models.aws_xgboost import AwsXGBoost
+from models.base import BaseModel
+from models.aws_linear_learner import LinearAwsLinearLearner
+from models.aws_xgboost import LinearAwsXGBooost, LinearAwsXGBooost
 from executors.sagemaker import Sagemaker
 from executors.numerai import Numerai
+from models.easy_combiner import EasyCombiner
+
+from default_config import DEFAULT_MODELS
 
 
 logging.basicConfig(
@@ -33,29 +40,55 @@ data_loader.add_to_cache(
     "s3://sagemaker-eu-west-1-729071960169/data/linear_learner/input_data/test.csv",
 )
 
-linear_learner = AwsLinearLearner(data=data_loader, aws_executor=sagemaker)
-# linear_learner.train()
-linear_learner.load_model('linear-learner-2019-08-25-10-23-16-401')
-# Y_test_ll = linear_learner.batch_predict()
-Y_test_ll = linear_learner._load_results("test")  # test
 
-xgboost = AwsXGBoost(data=data_loader, aws_executor=sagemaker)
+linear_learner = LinearAwsLinearLearner(data=data_loader, aws_executor=sagemaker)
+# linear_learner.tune()
+linear_learner.load_model("linear-learner-190831-1633-005-9e7fae2a")
+# Y_test_ll = linear_learner.batch_predict()
+Y_test_ll = linear_learner._load_results("test")
+
+xgboost = LinearAwsXGBooost(data=data_loader, aws_executor=sagemaker)
 # xgboost.train()
-xgboost.load_model('xgboost-2019-08-25-10-48-40-209')
+# xgboost.tune()
+xgboost.load_model('xgboost-190831-1837-001-c34eb1a8')
 # Y_test_xg = xgboost.batch_predict()
-Y_test_xgb = xgboost._load_results("test")  # test
+Y_test_xg = xgboost._load_results("test")
 
 score_ll = data_loader.score_data(Y_test_ll)
-score_xgb = data_loader.score_data(Y_test_xgb)
+score_xgb = data_loader.score_data(Y_test_xg)
+Y_labels = data_loader.test_data.loc[:, data_loader.output_column]
 
+combiner = EasyCombiner(Y_labels, Y_test_xg, Y_test_ll, score_function=data_loader.score_correlation)
+score, weights, y_predict = combiner.combine(10)
+y_predict.to_csv("data/temp/predictions/combination.csv")
+
+"""
 Y_test_ll = data_loader.format_predictions(Y_test_ll)
 Y_test_xgb = data_loader.format_predictions(Y_test_xgb)
 
 print(f"The linear learner scored {score_ll}.")
 print(f"The xgboost model scored {score_xgb}.")
 
-production_data = DataLoader(local_data_location="data/numerai_tournement.csv")
-Y_pred_prod = xgboost.batch_predict(data=production_data, all_data=True)
+"""
+# Predict production data
+production_data = DataLoader(local_data_location="data/numerai/numerai_tournament_data.csv")
+# Y_pred_prod_xg = xgboost.batch_predict(data_loader=production_data, all_data=True, name="predictions_xg")
+Y_pred_prod_xg = xgboost._load_results("predictions_xg")
+# Y_pred_prod_ll = linear_learner.batch_predict(data_loader=production_data, all_data=True, name="predictions_ll")
+Y_pred_prod_ll = linear_learner._load_results("predictions_ll")
+Y_total = Y_pred_prod_xg * weights[0] + Y_pred_prod_ll * weights[1]
+
+
+"""
+model_instances: List[BaseModel] = []
+d
+for model in DEFAULT_MODELS:
+    model_instance = model(data=data_loader, aws_executor=sagemaker)
+    model_instance.train()
+    Y_pred = model_instance.batch_predict(all_data=False)
+    data_loader.add_to_cache("predictions", model_instance.name, Y_pred)
+"""
 
 numerai = Numerai()
-numerai.upload_predictions(Y_pred_prod, local_folder="data/temp/predictions")
+Y_total = production_data.format_predictions(Y_total, all_data=True)
+numerai.upload_predictions(Y_total, local_folder="data/temp/predictions")

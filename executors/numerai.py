@@ -93,7 +93,6 @@ class Numerai:
             success: Whether the upload was successful
         """
         local_file = self.format_predictions(predictions, local_folder, name)
-        LOGGER.info("Uploading predictions to Numerai")
         return self.upload_predictions_csv(local_file)
 
     def upload_predictions_csv(self, file_location: str) -> bool:
@@ -106,7 +105,9 @@ class Numerai:
         Returns:
             success: Whether the upload was successful
         """
+        LOGGER.info("Uploading predictions to Numerai")
         submission_id = self.napi.upload_predictions(file_location)
+        LOGGER.info("Done with the upload to Numerai")
         success = self.napi.check_submission_successful(submission_id)
         return success
 
