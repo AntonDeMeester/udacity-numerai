@@ -25,12 +25,13 @@ from .base import BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
+
 class AwsBase(BaseModel, ABC):
     default_hyperparameters = NotImplemented
     name = "aws-base"
-    
-    
-    def __init__(self,
+
+    def __init__(
+        self,
         data: DataLoader,
         aws_executor: Sagemaker,
         output_path: Optional[str] = None,
@@ -40,7 +41,7 @@ class AwsBase(BaseModel, ABC):
         Initializes a genneral AWS model with data and an executor.
         This will not yet do any training or data uploading.
         """
-        
+
         self.executor = aws_executor
         self.model_name = None
         self.prefix = f"{self.executor.prefix}/{self.name}"

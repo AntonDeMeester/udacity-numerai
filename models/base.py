@@ -10,6 +10,7 @@ from data_processing.data_loader import DataLoader
 
 LOGGER = logging.getLogger(__name__)
 
+
 class BaseModel(ABC):
     """
     The base model to be used in this project.
@@ -39,10 +40,7 @@ class BaseModel(ABC):
         return NotImplemented
 
     def predict(
-        self,
-        data_loader: Optional[DataLoader] = None,
-        all_data: bool = False,
-        **kwargs
+        self, data_loader: Optional[DataLoader] = None, all_data: bool = False, **kwargs
     ) -> DataFrame:
         """
         Predict based on an already trained model.

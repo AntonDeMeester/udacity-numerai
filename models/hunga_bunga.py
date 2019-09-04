@@ -49,12 +49,12 @@ class HungaBungaBase(BaseModel):
         all_data = None
         self._model.fit(X.values, Y.values)
 
-     def execute_prediction(self, data: DataFrame) -> DataFrame:
+    def execute_prediction(self, data: DataFrame) -> DataFrame:
         """
         Actually executes the predictions.
         """
         predictions = self._model.predict(data)
-        return DataFrame(predictions) 
+        return DataFrame(predictions)
 
     def tune(self):
         """

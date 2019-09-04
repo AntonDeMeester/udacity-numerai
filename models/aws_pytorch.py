@@ -18,10 +18,9 @@ from .aws_base import AwsBase
 
 LOGGER = logging.getLogger(__name__)
 
+
 class AwsPytorch(AwsBase, ABC):
-    default_model_kwargs = {
-        'framework_version': '1.0.0',
-    }
+    default_model_kwargs = {"framework_version": "1.0.0"}
     train_entry_point: str = "train.py"
     predict_entry_point: str = "predict.py"
     source_directory: str = NotImplemented
@@ -52,7 +51,9 @@ class AwsPytorch(AwsBase, ABC):
         Arguments:
             model_name: The name of the training job, as provided by AWS
         """
-        LOGGER.info(f"Loading already trained pytorch training job: {training_job_name}")
+        LOGGER.info(
+            f"Loading already trained pytorch training job: {training_job_name}"
+        )
         self._estimator = PyTorch.attach(
             training_job_name=training_job_name, sagemaker_session=self.executor.session
         )
@@ -70,7 +71,9 @@ class AwsPytorch(AwsBase, ABC):
             if self._estimator is not None:
                 model_location = self._estimator.model_data
             else:
-                model_location = f"s3://{self.executor.bucket}/{self.output_path}/model.tar.gz"
+                model_location = (
+                    f"s3://{self.executor.bucket}/{self.output_path}/model.tar.gz"
+                )
         LOGGER.info(f"Loading already created pytorch model {model_location}")
 
         self._model = PyTorchModel.attach(
@@ -92,7 +95,7 @@ class AwsPytorch(AwsBase, ABC):
         """
         if self._model is None:
             self.load_model()
-        
+
         LOGGER.info("Deploying the predictor")
         self._predictor = self._model.deploy(**self.executor.default_deploy_kwargs)
         LOGGER.warn("Don't forgot to delete the predicion endpoint")
