@@ -13,6 +13,7 @@ import numerapi
 
 LOGGER = logging.getLogger(__name__)
 
+
 class Numerai:
     """
     Executor class to deal with Numerai uploads and downloads
@@ -59,7 +60,9 @@ class Numerai:
             os.makedirs(local_folder)
         local_file_location = f"{local_folder}/{name}.csv"
         LOGGER.info(f"Saving predictions to {local_file_location}")
-        predictions.to_csv(local_file_location, index=True, header=True, index_label="id")
+        predictions.to_csv(
+            local_file_location, index=True, header=True, index_label="id"
+        )
         return local_file_location
 
     def download_latest_data(self, local_folder: str, name: str = None) -> str:

@@ -5,7 +5,11 @@ from typing import Dict, Any
 from pandas import DataFrame
 
 # Amazon imports
-from sagemaker.parameter import IntegerParameter, ContinuousParameter, CategoricalParameter
+from sagemaker.parameter import (
+    IntegerParameter,
+    ContinuousParameter,
+    CategoricalParameter,
+)
 
 # Local imports
 from .aws_base import AwsEstimator
@@ -22,8 +26,8 @@ class AwsLinearLearner(AwsEstimator):
     default_tuning_job_config = {
         "max_jobs": 20,
         "max_parallel_jobs": 3,
-        "objective_metric_name": 'validation:objective_loss',
-        "objective_type": "Minimize"
+        "objective_metric_name": "validation:objective_loss",
+        "objective_type": "Minimize",
     }
 
     def _load_results(self, file_name: str) -> DataFrame:
@@ -40,7 +44,7 @@ class AwsLinearLearner(AwsEstimator):
         initial_df = initial_df.astype("float32")
         return initial_df
 
-    
+
 class LinearAwsLinearLearner(AwsLinearLearner):
     default_hyperparameters: Dict = {
         "predictor_type": "regressor",
@@ -50,6 +54,7 @@ class LinearAwsLinearLearner(AwsLinearLearner):
         "optimizer": "auto",
     }
     name: str = "linear_learner"
+
 
 class BinaryAwsLinearLearner(AwsEstimator):
     default_hyperparameters: Dict = {
@@ -61,6 +66,7 @@ class BinaryAwsLinearLearner(AwsEstimator):
         "optimizer": "auto",
     }
     name: str = "binary_linear_learner"
+
 
 class MulticlassAwsLinearLearner(AwsEstimator):
     default_hyperparameters: Dict = {

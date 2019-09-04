@@ -12,6 +12,7 @@ class AwsXGBoost(AwsEstimator):
     """
     XG Boost implementation for AWS
     """
+
     container_name: str = "xgboost"
     name: str = "XGBoost"
 
@@ -36,6 +37,7 @@ class LinearAwsXGBooost(AwsXGBoost):
     }
     name: str = "linear_xgboost"
 
+
 class BinaryAwsXGBoost(AwsXGBoost):
     default_hyperparameters: Dict = {
         "objective": "reg:logistic",
@@ -48,6 +50,7 @@ class BinaryAwsXGBoost(AwsXGBoost):
         "num_round": 200,
     }
     name: str = "binary_xgboost"
+
 
 class MulticlassAwsXGBoost(AwsXGBoost):
     default_hyperparameters: Dict = {

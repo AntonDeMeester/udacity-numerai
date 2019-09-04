@@ -4,7 +4,7 @@ from typing import List
 
 import pandas as pd
 
-from data_processing.data_loader import DataLoader
+from data_processing.numerai import NumeraiDataLoader
 from models.base import BaseModel
 from models.aws_linear_learner import LinearAwsLinearLearner
 from models.aws_xgboost import LinearAwsXGBooost, LinearAwsXGBooost
@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 
 sagemaker = Sagemaker()
-data_loader = DataLoader(local_data_location="data/numerai_training_data.csv")
+data_loader = NumeraiDataLoader(local_data_location="data/numerai_training_data.csv")
 data_loader.add_to_cache("local", "train", "data/temp/linear_learner/train.csv")
 data_loader.add_to_cache(
     "local", "validation", "data/temp/linear_learner/validation.csv"
@@ -50,7 +50,7 @@ Y_test_ll = linear_learner._load_results("test")
 xgboost = LinearAwsXGBooost(data=data_loader, aws_executor=sagemaker)
 # xgboost.train()
 # xgboost.tune()
-xgboost.load_model('xgboost-190831-1837-001-c34eb1a8')
+xgboost.load_model("xgboost-190831-1837-001-c34eb1a8")
 # Y_test_xg = xgboost.batch_predict()
 Y_test_xg = xgboost._load_results("test")
 
@@ -58,7 +58,9 @@ score_ll = data_loader.score_data(Y_test_ll)
 score_xgb = data_loader.score_data(Y_test_xg)
 Y_labels = data_loader.test_data.loc[:, data_loader.output_column]
 
-combiner = EasyCombiner(Y_labels, Y_test_xg, Y_test_ll, score_function=data_loader.score_correlation)
+combiner = EasyCombiner(
+    Y_labels, Y_test_xg, Y_test_ll, score_function=data_loader.score_correlation
+)
 score, weights, y_predict = combiner.combine(10)
 y_predict.to_csv("data/temp/predictions/combination.csv")
 
@@ -71,7 +73,9 @@ print(f"The xgboost model scored {score_xgb}.")
 
 """
 # Predict production data
-production_data = DataLoader(local_data_location="data/numerai/numerai_tournament_data.csv")
+production_data = NumeraiDataLoader(
+    local_data_location="data/numerai/numerai_tournament_data.csv"
+)
 # Y_pred_prod_xg = xgboost.batch_predict(data_loader=production_data, all_data=True, name="predictions_xg")
 Y_pred_prod_xg = xgboost._load_results("predictions_xg")
 # Y_pred_prod_ll = linear_learner.batch_predict(data_loader=production_data, all_data=True, name="predictions_ll")

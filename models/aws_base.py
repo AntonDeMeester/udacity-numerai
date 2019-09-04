@@ -43,8 +43,8 @@ class AwsEstimator(BaseModel, ABC):
     default_tuning_job_config = {
         "max_jobs": 3,
         "max_parallel_jobs": 3,
-        "objective_metric_name": 'validation:rmse',
-        "objective_type": "Minimize"
+        "objective_metric_name": "validation:rmse",
+        "objective_type": "Minimize",
     }
     container_name = NotImplemented
     name = NotImplemented
@@ -205,7 +205,12 @@ class AwsEstimator(BaseModel, ABC):
             training_job_name=model_name, sagemaker_session=self.executor.session
         )
 
-    def batch_predict(self, data_loader: Optional[DataLoader] = None, all_data: bool = False, name : str = "test") -> DataFrame:
+    def batch_predict(
+        self,
+        data_loader: Optional[DataLoader] = None,
+        all_data: bool = False,
+        name: str = "test",
+    ) -> DataFrame:
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
@@ -229,7 +234,6 @@ class AwsEstimator(BaseModel, ABC):
             data = data_loader.data
         else:
             data = data_loader.test_data
-        
 
         # Get the data and upload to S3
         X_test = data.loc[:, data_loader.feature_columns]
@@ -284,7 +288,12 @@ class AwsEstimator(BaseModel, ABC):
         self.data.add_to_cache("dataframe", "test_predictions", df)
         return df
 
-    def tune(self, tuning_job_parameters: Dict[str, Any] = {}, hyperparameters: Dict[str, Any] = None, hyperparameter_tuning: Dict[str, Any] = None):
+    def tune(
+        self,
+        tuning_job_parameters: Dict[str, Any] = {},
+        hyperparameters: Dict[str, Any] = None,
+        hyperparameter_tuning: Dict[str, Any] = None,
+    ):
         """
         Tunes the current Estimator with the provided hyperparameters
         """
@@ -295,7 +304,10 @@ class AwsEstimator(BaseModel, ABC):
         hyperparameters["feature_dim"] = len(self.data.feature_columns)
         if hyperparameter_tuning is None:
             hyperparameter_tuning = self.default_hyperparameter_tuning
-        used_tuning_job_parameters = {**self.default_tuning_job_config, **tuning_job_parameters}
+        used_tuning_job_parameters = {
+            **self.default_tuning_job_config,
+            **tuning_job_parameters,
+        }
 
         if self._model is None:
             self._model = self._get_model(hyperparameters)
@@ -303,7 +315,7 @@ class AwsEstimator(BaseModel, ABC):
         self._tuner = HyperparameterTuner(
             estimator=self._model,
             **used_tuning_job_parameters,
-            hyperparameter_ranges=hyperparameter_tuning
+            hyperparameter_ranges=hyperparameter_tuning,
         )
 
         # Get the data and upload to S3

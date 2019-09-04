@@ -1,5 +1,3 @@
-
-
 from models.aws_linear_learner import LinearAwsLinearLearner, MulticlassAwsLinearLearner
 from models.aws_xgboost import LinearAwsXGBooost, MulticlassAwsXGBoost
 
@@ -13,10 +11,4 @@ multiclass_xgboost = MulticlassAwsXGBoost
 # Or in dict?
 
 
-
-DEFAULT_MODELS = [
-    linear_learner,
-    multiclass_linear,
-    linear_xgboost,
-    multiclass_xgboost,
-]
+DEFAULT_MODELS = [linear_learner, multiclass_linear, linear_xgboost, multiclass_xgboost]
