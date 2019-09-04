@@ -25,8 +25,115 @@ from .base import BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
+class AwsBase(BaseModel, ABC):
+    default_hyperparameters = NotImplemented
+    name = "aws-base"
+    
+    
+    def __init__(self,
+        data: DataLoader,
+        aws_executor: Sagemaker,
+        output_path: Optional[str] = None,
+        local_save_folder: Optional[str] = None,
+    ) -> None:
+        """
+        Initializes a genneral AWS model with data and an executor.
+        This will not yet do any training or data uploading.
+        """
+        
+        self.executor = aws_executor
+        self.model_name = None
+        self.prefix = f"{self.executor.prefix}/{self.name}"
+        self.input_data_prefix = f"{self.prefix}/input_data"
+        self.output_data_prefix = f"{self.prefix}/output_data"
 
-class AwsEstimator(BaseModel, ABC):
+        if output_path is not None:
+            self.output_path = output_path
+        else:
+            self.output_path = "s3://{bucket}/{prefix}".format(
+                bucket=self.executor.bucket, prefix=self.output_data_prefix
+            )
+        if local_save_folder is not None:
+            self.local_save_folder = local_save_folder
+        else:
+            self.local_save_folder = f"data/temp/{self.name}"
+
+    def _prepare_data(
+        self,
+        data_name: str,
+        x_data: DataFrame,
+        y_data: Optional[DataFrame] = None,
+        s3_input_type: bool = True,
+    ) -> Union[s3_input, str]:
+        """
+        Prepares the data to use in the learner.
+
+        Arguments:
+            x_data: the features of the data
+            y_data: (optional) the output of the data. Don't provide for predictions
+
+        Returns:
+            The s3 input or s3 location of the data
+        """
+        LOGGER.info("Preparing data for usage")
+
+        # Try to get from cache
+        return_data = self.data.get_from_cache("s3", data_name)
+        if return_data is not None:
+            LOGGER.info("Found s3 data in cache.")
+            if s3_input_type:
+                return s3_input(return_data, content_type="text/csv")
+            return return_data
+
+        # Try to get local data from cache
+        temp_location = self.data.get_from_cache("local", data_name)
+        # If not available, save to local
+        if temp_location is None:
+            if not os.path.exists(self.local_save_folder):
+                os.makedirs(self.local_save_folder)
+            temp_location = f"{self.local_save_folder}/{data_name}.csv"
+            if y_data is not None:
+                data = pd.concat([y_data, x_data], axis=1)
+            else:
+                data = x_data
+            LOGGER.info("Writing data to local machine")
+            data.to_csv(temp_location, index=False, header=False)
+        else:
+            # Log if present
+            LOGGER.info("Found local data location in cache.")
+
+        # Upload to S3
+        return_data = self.executor.upload_data(
+            temp_location, prefix=self.input_data_prefix
+        )
+        # Put in cache
+        self.data.add_to_cache("s3", data_name, return_data)
+
+        if s3_input_type:
+            return_data = s3_input(return_data, content_type="text/csv")
+
+        return return_data
+
+    def _load_results(self, file_name: str) -> DataFrame:
+        # Add S3 results to cache
+        prediction_file_name = f"{file_name}.csv.out"
+        s3_location = f"s3://{self.executor.bucket}/{self.output_data_prefix}/{prediction_file_name}"
+        self.data.add_to_cache("s3", "test_predictions", s3_location)
+
+        # Download from S3
+        local_file_location = self.executor.download_data(
+            prediction_file_name, self.local_save_folder, prefix=self.output_data_prefix
+        )
+        # Add local files to cache
+        self.data.add_to_cache("local", "test_predictions", local_file_location)
+
+        # Load dataframe and put in cache
+        df = pd.read_csv(local_file_location, header=None)
+        self.data.add_to_cache("dataframe", "test_predictions", df)
+        return df
+
+
+class AwsEstimator(AwsBase, ABC):
     """
     The general implementation of a AWS Estimator model:
     https://sagemaker.readthedocs.io/en/stable/estimators.html
@@ -47,38 +154,22 @@ class AwsEstimator(BaseModel, ABC):
         "objective_type": "Minimize",
     }
     container_name = NotImplemented
-    name = NotImplemented
+    name = "aws-estimator"
 
     def __init__(
         self,
         data: DataLoader,
         aws_executor: Sagemaker,
-        output_path=None,
-        local_save_folder=None,
+        output_path: Optional[str] = None,
+        local_save_folder: Optional[str] = None,
     ) -> None:
         """
-        Initializes the AwsLinearLearner with data and an executor.
+        Initializes a AWS Estimator with data and an executor.
         This will not yet do any training or data uploading.
         """
         LOGGER.info(f"Initializing AWS Estimator {self.name} model")
 
-        self.data = data
-        self.executor = aws_executor
-        self.model_name = None
-        self.prefix = f"{self.executor.prefix}/{self.name}"
-        self.input_data_prefix = f"{self.prefix}/input_data"
-        self.output_data_prefix = f"{self.prefix}/output_data"
-
-        if output_path is not None:
-            self.output_path = output_path
-        else:
-            self.output_path = "s3://{bucket}/{prefix}".format(
-                bucket=self.executor.bucket, prefix=self.output_data_prefix
-            )
-        if local_save_folder is not None:
-            self.local_save_folder = local_save_folder
-        else:
-            self.local_save_folder = f"data/temp/{self.name}"
+        super().__init__(data, aws_executor, output_path, local_save_folder)
 
         self._model: Optional[Estimator] = None
         self._transformer: Optional[Transformer] = None
@@ -137,62 +228,6 @@ class AwsEstimator(BaseModel, ABC):
         model.set_hyperparameters(**used_hyperparameters)
         return model
 
-    def _prepare_data(
-        self,
-        data_name: str,
-        x_data: DataFrame,
-        y_data: Optional[DataFrame] = None,
-        s3_input_type: bool = True,
-    ) -> Union[s3_input, str]:
-        """
-        Prepares the data to use in the learner.
-
-        Arguments:
-            x_data: the features of the data
-            y_data: (optional) the output of the data. Don't provide for predictions
-
-        Returns:
-            The s3 input or s3 location of the data
-        """
-        LOGGER.info("Preparing data for usage")
-
-        # Try to get from cache
-        return_data = self.data.get_from_cache("s3", data_name)
-        if return_data is not None:
-            LOGGER.info("Found s3 data in cache.")
-            if s3_input_type:
-                return s3_input(return_data, content_type="text/csv")
-            return return_data
-
-        # Try to get local data from cache
-        temp_location = self.data.get_from_cache("local", data_name)
-        # If not available, save to local
-        if temp_location is None:
-            if not os.path.exists(self.local_save_folder):
-                os.makedirs(self.local_save_folder)
-            temp_location = f"{self.local_save_folder}/{data_name}.csv"
-            if y_data is not None:
-                data = pd.concat([y_data, x_data], axis=1)
-            else:
-                data = x_data
-            LOGGER.info("Writing data to local machine")
-            data.to_csv(temp_location, index=False, header=False)
-        else:
-            # Log if present
-            LOGGER.info("Found local data location in cache.")
-
-        # Upload to S3
-        return_data = self.executor.upload_data(
-            temp_location, prefix=self.input_data_prefix
-        )
-        # Put in cache
-        self.data.add_to_cache("s3", data_name, return_data)
-
-        if s3_input_type:
-            return_data = s3_input(return_data, content_type="text/csv")
-
-        return return_data
-
     def load_model(self, model_name: str) -> None:
         """
         Load the already trained model to not have to train again.
@@ -205,12 +240,7 @@ class AwsEstimator(BaseModel, ABC):
             training_job_name=model_name, sagemaker_session=self.executor.session
         )
 
-    def batch_predict(
-        self,
-        data_loader: Optional[DataLoader] = None,
-        all_data: bool = False,
-        name: str = "test",
-    ) -> DataFrame:
+    def execute_prediction(self, data: DataFrame, name: str = "test") -> DataFrame:
         """
         Predict based on an already trained model.
         Loads the existing model if it exists.
@@ -218,26 +248,13 @@ class AwsEstimator(BaseModel, ABC):
 
         Arguments:
             data: the data to load. If not provided, is defaulted to the local data
-            all_data: whether to use all the data or just the test from the data loader
+            name: The same of the predictions to save on S3.
         
         Returns:
             The predicted dataframe
         """
-        LOGGER.info(f"Predicting new data")
-        if self._transformer is None:
-            self._transformer = self._get_transformer()
-
-        if data_loader is None:
-            data_loader = self.data
-
-        if all_data:
-            data = data_loader.data
-        else:
-            data = data_loader.test_data
-
-        # Get the data and upload to S3
-        X_test = data.loc[:, data_loader.feature_columns]
-        s3_location_test = self._prepare_data(name, X_test, s3_input_type=False)
+        # Upload to S3
+        s3_location_test = self._prepare_data(name, data, s3_input_type=False)
 
         # Start the job
         LOGGER.info("Creating the transformer job")
@@ -250,8 +267,6 @@ class AwsEstimator(BaseModel, ABC):
         # Download the data
         LOGGER.info("Loading the results of the transformer job")
         Y_test = self._load_results(name)
-
-        Y_test = data_loader.format_predictions(Y_test, all_data=all_data)
 
         return Y_test
 
@@ -269,24 +284,6 @@ class AwsEstimator(BaseModel, ABC):
             **self.executor.default_transformer_kwargs,
             output_path=f"{self.output_path}",
         )
-
-    def _load_results(self, file_name: str) -> DataFrame:
-        # Add S3 results to cache
-        prediction_file_name = f"{file_name}.csv.out"
-        s3_location = f"s3://{self.executor.bucket}/{self.output_data_prefix}/{prediction_file_name}"
-        self.data.add_to_cache("s3", "test_predictions", s3_location)
-
-        # Download from S3
-        local_file_location = self.executor.download_data(
-            prediction_file_name, self.local_save_folder, prefix=self.output_data_prefix
-        )
-        # Add local files to cache
-        self.data.add_to_cache("local", "test_predictions", local_file_location)
-
-        # Load dataframe and put in cache
-        df = pd.read_csv(local_file_location, header=None)
-        self.data.add_to_cache("dataframe", "test_predictions", df)
-        return df
 
     def tune(
         self,

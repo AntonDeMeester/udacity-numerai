@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "2ce73420b860b39c4ec90eb74ea1718c8c87ec317358900a5b026fae7796d9e5"
+            "sha256": "ed8a9ab184ab97b765a3d267a78a1293bc417d5ee8245a2bdef2cf91f3bc58eb"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -46,18 +46,18 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:366a1f3ec37b9434f25247cbe876f9ca1b53d35e35af18f74c735445100b4bc4",
-                "sha256:e7718b48cd073ad59a99a33d14252319dfaf550be3682b0c6a58da052fb05fcc"
+                "sha256:962b8a6038538962e5a91665b7e9d8397ccc8dad9018c8bf853fcb96c434ff90",
+                "sha256:bc1708ca764eb76ee5e3dc4b08846ac10009c8825615b4f219f08b96a3be47e3"
             ],
             "index": "pypi",
-            "version": "==1.9.217"
+            "version": "==1.9.221"
         },
         "botocore": {
             "hashes": [
-                "sha256:68a0a22ca4e0e7e7ab482f63e21debfe402841fc49b8503dec0a7307b565d774",
-                "sha256:7a213b876e58b1b5380cf30faa05ba45073692ad4a3cc803ba763082a36436bb"
+                "sha256:6d49deff062d2ae0f03fc26b56df8b1bb9e8b136657bcd8d84c986a4068fb784",
+                "sha256:bbee3fdcbe56ca53e2c32c6c12d174fa9b4ffe27b633183c29bd5aec9e200bae"
             ],
-            "version": "==1.12.217"
+            "version": "==1.12.221"
         },
         "cached-property": {
             "hashes": [
@@ -192,6 +192,13 @@
                 "sha256:24842d7d51556adcabd885ac3cf5e1df73fc622a1708bf3667bf5927576cdfa6"
             ],
             "version": "==2.5.0"
+        },
+        "hunga-bunga": {
+            "hashes": [
+                "sha256:5d3921aec8ca9e26a317c216401bd6ee84441e35bac26a27887c45db59e47b66"
+            ],
+            "index": "pypi",
+            "version": "==0.1"
         },
         "idna": {
             "hashes": [
@@ -406,10 +413,10 @@
         },
         "sagemaker": {
             "hashes": [
-                "sha256:07382a1308cdceb50835f8fbbcdbb25edeb8d2602e4e69fb0c78ec524d1c06c5"
+                "sha256:c6d0fe3b9ef12b0f166b7ebe22ceaafb9caee3656d978c8768030a020e1410f4"
             ],
             "index": "pypi",
-            "version": "==1.38.1"
+            "version": "==1.38.6"
         },
         "scikit-learn": {
             "hashes": [
