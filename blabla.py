@@ -37,7 +37,9 @@ model = HungaBungaRegressor(data=data_loader)
 model = AwsTwoLayerLinearNeuralNetwork(data=data_loader, aws_executor=sagemaker)
 # model.train()
 # model.load_estimator("sagemaker-pytorch-2019-09-08-11-24-24-412")
-model._predictor = PyTorchPredictor("sagemaker-pytorch-2019-09-08-13-06-53-003", sagemaker.session)
+model._predictor = PyTorchPredictor(
+    "sagemaker-pytorch-2019-09-08-13-06-53-003", sagemaker.session
+)
 Y_pred = model.predict()
 
 print(data_loader.score_data(Y_pred))

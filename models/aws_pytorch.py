@@ -150,7 +150,9 @@ class AwsPytorch(AwsBase, ABC):
             self.load_predictor()
 
             # Split in batches that AWS accepts. Divide by 2 for good measure
-            no_batches = math.ceil(X_test.values.nbytes / (self.max_prediction_size / 2))
+            no_batches = math.ceil(
+                X_test.values.nbytes / (self.max_prediction_size / 2)
+            )
             batches = self.split_in_batches(X_test, no_batches)
             prediction_list = []
 

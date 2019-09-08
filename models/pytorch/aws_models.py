@@ -1,6 +1,6 @@
-
 # Local imports
 from models.aws_pytorch import AwsPytorch
+
 
 class AwsTwoLayerLinearNeuralNetwork(AwsPytorch):
     """
@@ -8,7 +8,7 @@ class AwsTwoLayerLinearNeuralNetwork(AwsPytorch):
     """
 
     default_hyperparameters = {
-        "D_in": NotImplemented, # Will be loaded based on data input
+        "D_in": NotImplemented,  # Will be loaded based on data input
         "Hidden": 150,
         "D_out": 1,
         "epochs": 10,

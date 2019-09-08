@@ -260,7 +260,9 @@ if __name__ == "__main__":
     )  # data_dir from above..
 
     # Initialise model and put to device
-    model = TwoLayerLinearNeuralNetwork(D_in=args.D_in, Hidden=args.Hidden, D_out=args.D_out).to(device)
+    model = TwoLayerLinearNeuralNetwork(
+        D_in=args.D_in, Hidden=args.Hidden, D_out=args.D_out
+    ).to(device)
 
     # Given: save the parameters used to construct the model
     save_model_params(model, args.model_dir)
