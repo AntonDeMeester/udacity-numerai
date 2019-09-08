@@ -7,11 +7,12 @@
     "python.linting.mypyEnabled": true,
     "python.pythonPath": "C:\\Users\\Anton\\.virtualenvs\\udacity-numerai-GOsii85r\\Scripts\\python.exe",
     "python.pipenvPath": "C:\\Users\\Anton\\.virtualenvs\\udacity-numerai-GOsii85r\\Scripts",
-    "python.testing.pytestEnabled": true,
+    "python.testing.pytestEnabled": false,
     "python.terminal.activateEnvironment": false,
     "python.testing.pytestArgs": [
         "."
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.nosetestsEnabled": false
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.promptToConfigure": false
 }

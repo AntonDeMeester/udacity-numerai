@@ -41,6 +41,7 @@ class AwsBase(BaseModel, ABC):
         Initializes a genneral AWS model with data and an executor.
         This will not yet do any training or data uploading.
         """
+        super().__init__(data)
 
         self.executor = aws_executor
         self.model_name = None

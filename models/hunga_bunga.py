@@ -20,6 +20,8 @@ class HungaBungaBase(BaseModel):
     """
     Te Hunga Bunga model combines all SKLearn models and selects the best one.
     It's not allowed to select a validation set manually.
+
+    Not recommended for large sample sizes as it's quite taxing on your own system.
     """
 
     name = "hunga-bunga"
@@ -44,16 +46,16 @@ class HungaBungaBase(BaseModel):
         Trains the model, with the data provided
         """
         all_data = pd.concat([self.data.train_data, self.data.validation_data])
-        X = all_data.loc[:, self.data.output_column]
-        Y = all_data.loc[:, self.data.feature_columns]
+        X = all_data.loc[:, self.data.feature_columns].values
+        Y = all_data.loc[:, self.data.output_column].values
         all_data = None
-        self._model.fit(X.values, Y.values)
+        self._model.fit(X, Y)
 
     def execute_prediction(self, data: DataFrame) -> DataFrame:
         """
         Actually executes the predictions.
         """
-        predictions = self._model.predict(data)
+        predictions = self._model.predict(data.values)
         return DataFrame(predictions)
 
     def tune(self):

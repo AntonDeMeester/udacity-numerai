@@ -48,9 +48,7 @@ class BaseModel(ABC):
         Arguments:
             test: whether to only use the test from the data loader or to use the full data loader
         """
-        LOGGER.info("Starting the PyTorch predictions")
-        self.load_predictor()
-        if data_loader is not None:
+        if data_loader is None:
             data_loader = self.data
 
         if all_data:
@@ -60,7 +58,7 @@ class BaseModel(ABC):
         X_test = data.loc[:, data_loader.feature_columns]
 
         # Here the magic actually happens. Implementation specific
-        predictions = self.execute_prediction(data, **kwargs)
+        predictions = self.execute_prediction(X_test, **kwargs)
 
         predictions = data_loader.format_predictions(predictions, all_data=all_data)
         return predictions

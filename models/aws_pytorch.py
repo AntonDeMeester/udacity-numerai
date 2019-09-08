@@ -1,7 +1,8 @@
 # Python libraries
 from abc import ABC
 import logging
-from typing import Optional
+import math
+from typing import Optional, Dict, Any
 
 # Data science
 import pandas as pd
@@ -23,7 +24,10 @@ class AwsPytorch(AwsBase, ABC):
     default_model_kwargs = {"framework_version": "1.0.0"}
     train_entry_point: str = "train.py"
     predict_entry_point: str = "predict.py"
-    source_directory: str = NotImplemented
+    source_directory: str = "models/pytorch"
+    name: str = "pytorch"
+
+    max_prediction_size = 5e6
 
     def __init__(
         self,
@@ -38,11 +42,43 @@ class AwsPytorch(AwsBase, ABC):
         self._model: Optional[PyTorchModel] = None
         self._predictor: Optional[PyTorchPredictor] = None
 
-    def train(self, *args, **kwargs) -> None:
+    def train(self, hyperparameters: Dict[str, Any] = {}) -> None:
         """
         Trains the model, with the data provided
         """
-        return NotImplemented
+        LOGGER.info("Starting to train model.")
+        model = self._get_model(hyperparameters)
+
+        # Get the data and upload to S3
+        Y_train = self.data.train_data.loc[:, self.data.output_column]
+        X_train = self.data.train_data.loc[:, self.data.feature_columns]
+        s3_train_data = self._prepare_data(
+            "train", X_train, Y_train, s3_input_type=False
+        )
+
+        Y_validation = self.data.validation_data.loc[:, self.data.output_column]
+        X_validation = self.data.validation_data.loc[:, self.data.feature_columns]
+        s3_validation_data = self._prepare_data(
+            "validation", X_validation, Y_validation, s3_input_type=False
+        )
+
+        LOGGER.info("Starting to fit model")
+        self._model.fit({"train": s3_train_data, "validation": s3_validation_data})
+        LOGGER.info("Done with fitting model")
+
+    def _get_model(self, hyperparameters):
+        if self._model is not None:
+            return self._model
+
+        used_hyperparameters = {**self.default_hyperparameters, **hyperparameters}
+        self._model = PyTorch(
+            entry_point=self.train_entry_point,
+            source_dir=self.source_directory,
+            hyperparameters=used_hyperparameters,
+            **self.default_model_kwargs,
+            **self.executor.default_model_kwargs,
+        )
+        return self._model
 
     def load_estimator(self, training_job_name: str) -> None:
         """
@@ -76,11 +112,11 @@ class AwsPytorch(AwsBase, ABC):
                 )
         LOGGER.info(f"Loading already created pytorch model {model_location}")
 
-        self._model = PyTorchModel.attach(
+        self._model = PyTorchModel(
             model_data=model_location,
             role=self.executor.role,
             entry_point=self.predict_entry_point,
-            source_directory=self.source_directory,
+            source_dir=self.source_directory,
             sagemaker_session=self.executor.session,
             **self.default_model_kwargs,
         )
@@ -93,12 +129,15 @@ class AwsPytorch(AwsBase, ABC):
         WARNING: a predictor costs money for the time it is online. 
         Make sure to always take it down.
         """
+        if self._predictor is not None:
+            return self._predictor
+
         if self._model is None:
             self.load_model()
 
         LOGGER.info("Deploying the predictor")
         self._predictor = self._model.deploy(**self.executor.default_deploy_kwargs)
-        LOGGER.warn("Don't forgot to delete the predicion endpoint")
+        LOGGER.warn("Don't forget to delete the predicion endpoint")
 
     def delete_endpoint(self) -> None:
         LOGGER.info("Deleting the pytorch endpoint")
@@ -106,13 +145,43 @@ class AwsPytorch(AwsBase, ABC):
             self._predictor.delete_endpoint()
 
     def execute_prediction(self, X_test: DataFrame) -> DataFrame:
-        LOGGER.info("Sending the data to predict to the model")
-        predictions = self._predictor.predict(data.values)
-        predictions = DataFrame(predictions)
-        LOGGER.info("Got the predictions")
+        try:
+            LOGGER.info("Starting the PyTorch predictions")
+            self.load_predictor()
 
-        self.delete_endpoint()
-        return predictions
+            # Split in batches that AWS accepts. Divide by 2 for good measure
+            no_batches = math.ceil(X_test.values.nbytes / (self.max_prediction_size / 2))
+            batches = self.split_in_batches(X_test, no_batches)
+            prediction_list = []
+
+            LOGGER.info("Sending the data to predict to the model")
+            for batch in batches:
+                predictions = self._predictor.predict(batch.values)
+                prediction_list.append(DataFrame(predictions))
+
+            Y_test = pd.concat(prediction_list, axis=0)
+            LOGGER.info("Got the predictions")
+        finally:
+            # self.delete_endpoint()
+            LOGGER.info("Deleting the endpoint")
+            pass
+        return Y_test
 
     def tune(self):
         return NotImplemented
+
+    def split_in_batches(self, data: DataFrame, number_of_batches):
+        LOGGER.info("Splitting the data in batches")
+
+        number_of_rows = data.shape[0]
+        list_of_dfs = []
+
+        for i in range(number_of_batches):
+            start_index = (i * number_of_rows) // number_of_batches
+            end_index = ((i + 1) * number_of_rows) // number_of_batches
+            batch = data.iloc[start_index:end_index]
+            list_of_dfs.append(batch)
+
+        LOGGER.info("Done splitting the data in batches")
+
+        return list_of_dfs
