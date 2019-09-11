@@ -3,6 +3,11 @@ from models.hunga_bunga import HungaBungaRegressor
 from models.pytorch.aws_models import AwsTwoLayerLinearNeuralNetwork
 from executors.sagemaker import Sagemaker
 from sagemaker.pytorch.model import PyTorchPredictor
+from models.combiner import NaiveCombiner
+from models.meta_model import MetaModel
+from models.aws_linear_learner import LinearAwsLinearLearner
+from models.aws_xgboost import LinearAwsXGBooost
+from executors.numerai import Numerai
 
 import logging
 
@@ -11,35 +16,32 @@ logging.basicConfig(
 )
 
 sagemaker = Sagemaker()
-data_loader = NumeraiDataLoader(local_data_location="data/numerai_training_data.csv")
-data_loader.add_to_cache("local", "train", "data/temp/linear_learner/train.csv")
-data_loader.add_to_cache(
-    "local", "validation", "data/temp/linear_learner/validation.csv"
+data_loader = NumeraiDataLoader(
+    local_data_location="data/temp/2019-09-11/numerai_dataset_176/numerai_training_data.csv"
 )
-data_loader.add_to_cache("local", "test", "data/temp/linear_learner/test.csv")
-data_loader.add_to_cache(
-    "s3", "train", "s3://sagemaker-eu-west-1-729071960169/data/input_data/train.csv"
-)
-data_loader.add_to_cache(
-    "s3",
-    "validation",
-    "s3://sagemaker-eu-west-1-729071960169/data/linear_learner/input_data/validation.csv",
-)
-data_loader.add_to_cache(
-    "s3",
-    "test",
-    "s3://sagemaker-eu-west-1-729071960169/data/linear_learner/input_data/test.csv",
-)
-"""
-data_loader = NumeraiDataLoader(data=data_loader.data.sample(frac=0.01))
-model = HungaBungaRegressor(data=data_loader)
-"""
-model = AwsTwoLayerLinearNeuralNetwork(data=data_loader, aws_executor=sagemaker)
-# model.train()
-# model.load_estimator("sagemaker-pytorch-2019-09-08-11-24-24-412")
-model._predictor = PyTorchPredictor(
-    "sagemaker-pytorch-2019-09-08-13-06-53-003", sagemaker.session
-)
-Y_pred = model.predict()
 
-print(data_loader.score_data(Y_pred))
+xgboost = LinearAwsXGBooost(data=data_loader, aws_executor=sagemaker)
+xgboost.load_model("xgboost-190911-2045-001-9ea55a3c")
+linear_learner = LinearAwsLinearLearner(data=data_loader, aws_executor=sagemaker)
+linear_learner.load_model("linear-learner-190911-2051-010-c1988378")
+tl_nn = AwsTwoLayerLinearNeuralNetwork(data=data_loader, aws_executor=sagemaker)
+tl_nn.load_estimator("sagemaker-pytorch-2019-09-11-19-47-58-170")
+
+combiner = NaiveCombiner(data_loader.execute_scoring, 10)
+
+meta_model = MetaModel(
+    data=data_loader, models=[xgboost, linear_learner, tl_nn], combiner=combiner
+)
+# meta_model.tune()
+meta_model.calculate_weights()
+
+
+# Predict production data
+production_data = NumeraiDataLoader(
+    local_data_location="data/temp/2019-09-11/numerai_dataset_176/numerai_tournament_data.csv"
+)
+predictions = meta_model.predict(data_loader=production_data, all_data=True)
+
+numerai = Numerai()
+predictions = production_data.format_predictions(predictions, all_data=True)
+numerai.upload_predictions(predictions, local_folder="data/temp/predictions")

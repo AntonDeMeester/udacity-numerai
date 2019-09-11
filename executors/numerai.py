@@ -74,7 +74,7 @@ class Numerai:
             local_folder: The folder to save thepredictions to
         """
         local_file_folder = self.napi.download_current_dataset(
-            dest_path=local_folder, dest_filename=name, upzip=True
+            dest_path=local_folder, dest_filename=name, unzip=True
         )
         return local_file_folder
 

@@ -173,10 +173,10 @@ class AwsEstimator(AwsBase, ABC):
 
         super().__init__(data, aws_executor, output_path, local_save_folder)
 
-        self._model: Optional[Estimator] = None
-        self._transformer: Optional[Transformer] = None
-        self._predictor: Optional[RealTimePredictor] = None
-        self._tuner: Optional[HyperparameterTuner] = None
+        self._model: Estimator = None
+        self._transformer: Transformer = None
+        self._predictor: RealTimePredictor = None
+        self._tuner: HyperparameterTuner = None
 
     def train(self, hyperparameters: Dict = {}) -> None:
         """
@@ -191,7 +191,7 @@ class AwsEstimator(AwsBase, ABC):
         self._model = self._get_model(hyperparameters)
 
         # Get the data and upload to S3
-        Y_train = self.data.train_data.loc[:, self.data.output_column]
+        Y_train = self.data.train_data.loc
         X_train = self.data.train_data.loc[:, self.data.feature_columns]
         s3_input_train = self._prepare_data("train", X_train, Y_train)
 
@@ -230,7 +230,7 @@ class AwsEstimator(AwsBase, ABC):
         model.set_hyperparameters(**used_hyperparameters)
         return model
 
-    def load_model(self, model_name: str) -> None:
+    def load_model(self, model_name: str = "") -> None:
         """
         Load the already trained model to not have to train again.
 
@@ -260,11 +260,12 @@ class AwsEstimator(AwsBase, ABC):
 
         # Start the job
         LOGGER.info("Creating the transformer job")
-        self._transformer.transform(
+        transformer = self._get_transformer()
+        transformer.transform(
             s3_location_test, content_type="text/csv", split_type="Line"
         )
         LOGGER.info("Waiting for the transformer job")
-        self._transformer.wait()
+        transformer.wait()
 
         # Download the data
         LOGGER.info("Loading the results of the transformer job")

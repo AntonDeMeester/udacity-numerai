@@ -67,7 +67,7 @@ class NumeraiDataLoader(DataLoader):
         Y_pred = Y_pred.set_axis(output_columns, axis=1, inplace=False)
         return Y_pred
 
-    def score_data(self, Y_pred: DataFrame, all_data: bool = False) -> float:
+    def score(self, Y_pred: DataFrame, all_data: bool = False) -> float:
         """
         Scores the data versus the predictions.
         For numerai, corretation coefficient is used.
@@ -84,10 +84,10 @@ class NumeraiDataLoader(DataLoader):
         else:
             Y_labels = self.test_data
         Y_labels = Y_labels.loc[:, self.output_column]
-        metric = self.score_correlation(Y_labels, Y_pred)
+        metric = self.execute_scoring(Y_labels, Y_pred)
         return metric
 
-    def score_correlation(self, labels: DataFrame, prediction: DataFrame) -> float:
+    def execute_scoring(self, labels: DataFrame, prediction: DataFrame) -> float:
         """
         Scores the correlation as defined by the Numerai tournament rules.
 

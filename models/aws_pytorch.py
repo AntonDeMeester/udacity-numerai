@@ -38,9 +38,9 @@ class AwsPytorch(AwsBase, ABC):
     ) -> None:
         super().__init__(data, aws_executor, output_path, local_save_folder)
 
-        self._estimator: Optional[PyTorch] = None
-        self._model: Optional[PyTorchModel] = None
-        self._predictor: Optional[PyTorchPredictor] = None
+        self._estimator: PyTorch = None
+        self._model: PyTorchModel = None
+        self._predictor: PyTorchPredictor = None
 
     def train(self, hyperparameters: Dict[str, Any] = {}) -> None:
         """

@@ -54,6 +54,7 @@ class Sagemaker:
         self.boto_session = BotoSession(
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            region_name="eu-west-1",
         )
         self.region = self.boto_session.region_name
         self.session = Session(boto_session=self.boto_session)

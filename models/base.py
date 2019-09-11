@@ -18,7 +18,7 @@ class BaseModel(ABC):
     This is an abstract class. Please subclass it to implement each method.
     """
 
-    def __init__(self, data: DataLoader, *args, **kwargs) -> None:
+    def __init__(self, data: DataLoader) -> None:
         """
         Loads the data.
 
@@ -27,13 +27,13 @@ class BaseModel(ABC):
         """
         self.data = data
 
-    def train(self, *args, **kwargs) -> None:
+    def train(self) -> None:
         """
         Trains the model, with the data provided
         """
         return NotImplemented
 
-    def load_model(self, *args, **kwargs) -> None:
+    def load_model(self) -> None:
         """
         Load the already trained model to not have to train again.
         """
@@ -46,7 +46,8 @@ class BaseModel(ABC):
         Predict based on an already trained model.
 
         Arguments:
-            test: whether to only use the test from the data loader or to use the full data loader
+            data_looader: The data to predict. If not provided, it will default to the local data loader.
+            all_data: Whehter to predict all the data in the data loader. If false, the test data will be predicted.
         """
         if data_loader is None:
             data_loader = self.data
@@ -63,7 +64,7 @@ class BaseModel(ABC):
         predictions = data_loader.format_predictions(predictions, all_data=all_data)
         return predictions
 
-    def execute_prediction(self, data: DataFrame, **kwargs) -> DataFrame:
+    def execute_prediction(self, data: DataFrame) -> DataFrame:
         """
         Actually executes the predictions. Based on implementation
 
@@ -76,7 +77,7 @@ class BaseModel(ABC):
         """
         return NotImplemented
 
-    def tune(self, *args, **kwargs) -> None:
+    def tune(self) -> None:
         """
         Tunes the current models with the provided hyperparameter tuning dict.
         """
