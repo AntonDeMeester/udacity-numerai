@@ -104,8 +104,12 @@ venv.bak/
 .mypy_cache/
 
 # data
+data
 data/*
 
 # VS code
 .vscode
 .vscode/*
+
+# Random stuff
+info.txt

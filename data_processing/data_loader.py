@@ -16,17 +16,18 @@ from sklearn.model_selection import train_test_split
 
 LOGGER = logging.getLogger(__name__)
 
+
 class DataLoader:
     """
     This class will load and manipulate the data.
     At creation, you need to provide the data location.
     """
 
-    index_column = "id"
-    data_type_column = "data_type"
-    time_column = "era"
-    feature_columns = None  # Dynamically load these as they are big
-    output_column = "target_kazutsugi"
+    index_column = NotImplemented
+    data_type_column = NotImplemented
+    time_column = NotImplemented
+    feature_columns = NotImplemented
+    output_column = NotImplemented
 
     def __init__(
         self,
@@ -62,7 +63,6 @@ class DataLoader:
         self.local_data_location = local_data_location
         self.validation_frac = validation_frac
         self.test_frac = test_frac
-        self.feature_columns = self._get_feature_columns()
 
         # Allow caches to be set on the data (e.g. s3 locations)
         self.cache: Dict[str, Any] = {}
@@ -121,26 +121,6 @@ class DataLoader:
         self._split_train_validation_test(self.validation_frac, self.test_frac)
         return self._test_data
 
-    @classmethod
-    def _get_feature_columns(self) -> List[str]:
-        """
-        Defines all the feature columns for Numerai.
-        """
-        # NOTE: When making this general, maybe let this be overwritable?
-        features = []
-        column_ranges: List[Dict] = [
-            {"prefix": "feature_intelligence", "range": range(1, 12 + 1)},
-            {"prefix": "feature_charisma", "range": range(1, 86 + 1)},
-            {"prefix": "feature_strength", "range": range(1, 38 + 1)},
-            {"prefix": "feature_dexterity", "range": range(1, 14 + 1)},
-            {"prefix": "feature_constitution", "range": range(1, 114 + 1)},
-            {"prefix": "feature_wisdom", "range": range(1, 46 + 1)},
-        ]
-        for column in column_ranges:
-            for index in column["range"]:
-                features.append(f"{column['prefix']}{str(index)}")
-        return features
-
     def _split_train_validation_test(
         self, validation_frac: float, test_frac: float
     ) -> None:
@@ -159,9 +139,10 @@ class DataLoader:
         assert 0 < validation_frac + test_frac < 1
         assert validation_frac >= 0 and test_frac >= 0
         test_val_frac = validation_frac + test_frac
+        # Set the random state so we can get consistent results
         train, validation = train_test_split(
             self.data, test_size=test_val_frac, random_state=512
-        )  # Set the random state so we can get consistent results
+        )
         LOGGER.info("Done splitting train vs validation-test")
 
         validation_over_test_frac = validation_frac / test_val_frac
@@ -171,9 +152,10 @@ class DataLoader:
             test = validation
             validation = None
         else:
+            # Set the random state so we can get consistent results
             validation, test = train_test_split(
                 validation, train_size=validation_over_test_frac, random_state=512
-            )  # Set the random state so we can get consistent results
+            )
         LOGGER.info("Done splitting validation and test")
 
         self._train_data = train
@@ -248,36 +230,27 @@ class DataLoader:
         except KeyError:
             return None
 
-    def score_data(self, Y_pred: DataFrame, all_data: bool= False) -> float:
+    def add_predictions(
+        self, Y_pred: DataFrame, name: str, all_data: bool = False
+    ) -> DataFrame:
         """
-        Scores the data versus the predictions.
-        For numerai, corretation coefficient is used.
+        Adds the predictions to the data, also formats it.
 
         Arguments:
-            Y_pred: the predicted values
-            all_data: Whether to use the complete dataset to compare to, or just the test set
+            Y_pred: dataframe with the predictions
+            all_data: whether all data was used
 
         Returns:
-            The scoring metric (correlation coefficient)
+            The formatted DataFrame
         """
-        if all_data:
-            Y_labels = self.data
-        else:
-            Y_labels = self.test_data
-        Y_labels = Y_labels.loc[:, self.output_column]
-        metric = self.score_correlation(Y_labels, Y_pred)
-        return metric
+        Y_pred = self.format_predictions(Y_pred, all_data)
+        self.add_to_cache("predictions", name, Y_pred)
+        return Y_pred
 
-    def score_correlation(self, labels: DataFrame, prediction: DataFrame) -> float:
-        """
-        Scores the correlation as defined by the Numerai tournament rules.
+    def format_predictions(
+        self, Y_pred: DataFrame, all_data: bool = False
+    ) -> DataFrame:
+        return NotImplemented
 
-        Arguments:
-            labels: The real labels of the output
-            prediction: The predicted labels
-
-        Returns:
-            The correlation coefficient
-        """
-        ranked_prediction = prediction.rank(pct=True, method="first")
-        return np.corrcoef(labels, ranked_prediction, rowvar=False)[0, 1]
+    def score_data(self, Y_pred: DataFrame, all_data: bool = False) -> float:
+        return NotImplemented
