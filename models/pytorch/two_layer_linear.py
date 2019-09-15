@@ -17,7 +17,7 @@ from torch.nn import functional
 from torch.utils import data
 
 
-# NOTE: inspired heavily from https://github.com/udacity/ML_SageMaker_Studies/blob/master/Moon_Data/source_solution/train.py
+# NOTE: inspired heavily by https://github.com/udacity/ML_SageMaker_Studies/blob/master/Moon_Data/source_solution/train.py
 CONTENT_TYPE = "application/x-npy"
 
 
@@ -42,6 +42,9 @@ class TwoLayerLinearNeuralNetwork(nn.Module):
 
 
 def model_fn(model_dir):
+    """
+    Loads the model from the model directory.
+    """
     print("Loading model.")
 
     # First, load the parameters used to create the model.
@@ -136,25 +139,23 @@ def save_model_params(model, model_dir):
 
 
 # Prediction functions
-# We will use the default input_fn and output_fn functions
-
-# def input_fn(serialized_input_data, content_type):
-#     print("Deserializing the input data.")
-#     if content_type == CONTENT_TYPE:
-#         stream = BytesIO(serialized_input_data)
-#         return np.load(stream, allow_pickle=True)
-#     raise Exception(
-#         "Requested unsupported ContentType in content_type: " + content_type
-#     )
+def input_fn(serialized_input_data, content_type):
+    print("Deserializing the input data.")
+    if content_type == CONTENT_TYPE:
+        stream = BytesIO(serialized_input_data)
+        return np.load(stream, allow_pickle=True)
+    raise Exception(
+        "Requested unsupported ContentType in content_type: " + content_type
+    )
 
 
-# def output_fn(prediction_output, accept):
-#     print("Serializing the generated output.")
-#     if accept == CONTENT_TYPE:
-#         buffer = BytesIO()
-#         np.save(buffer, prediction_output)
-#         return buffer.getvalue(), accept
-#     raise Exception("Requested unsupported ContentType in Accept: " + accept)
+def output_fn(prediction_output, accept):
+    print("Serializing the generated output.")
+    if accept == CONTENT_TYPE:
+        buffer = BytesIO()
+        np.save(buffer, prediction_output)
+        return buffer.getvalue(), accept
+    raise Exception("Requested unsupported ContentType in Accept: " + accept)
 
 
 def predict_fn(input_data, model):

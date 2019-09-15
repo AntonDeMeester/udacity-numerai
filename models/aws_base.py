@@ -131,6 +131,7 @@ class AwsBase(BaseModel, ABC):
 
         # Load dataframe and put in cache
         df = pd.read_csv(local_file_location, header=None)
+        df.index = list(df.index)
         self.data.add_to_cache("dataframe", "test_predictions", df)
         return df
 

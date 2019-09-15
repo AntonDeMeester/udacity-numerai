@@ -112,7 +112,7 @@ class AwsPytorch(AwsBase, ABC):
                 )
         LOGGER.info(f"Loading already created pytorch model {model_location}")
 
-        self._model = PyTorchModel(
+        self._model: PyTorchModel = PyTorchModel(
             model_data=model_location,
             role=self.executor.role,
             entry_point=self.predict_entry_point,
@@ -121,7 +121,7 @@ class AwsPytorch(AwsBase, ABC):
             **self.default_model_kwargs,
         )
 
-    def load_predictor(self) -> None:
+    def load_predictor(self, predictor_name: str = None) -> None:
         """
         Loads the predictor from the loaded model.
         If no model is present, it will load it.
@@ -129,6 +129,11 @@ class AwsPytorch(AwsBase, ABC):
         WARNING: a predictor costs money for the time it is online. 
         Make sure to always take it down.
         """
+        if predictor_name is not None:
+            self._predictor = PyTorchPredictor(
+                predictor_name, sagemaker_session=self.executor.session
+            )
+
         if self._predictor is not None:
             return self._predictor
 
@@ -140,11 +145,25 @@ class AwsPytorch(AwsBase, ABC):
         LOGGER.warn("Don't forget to delete the predicion endpoint")
 
     def delete_endpoint(self) -> None:
+        """
+        Deletes the endpoint.
+        """
         LOGGER.info("Deleting the pytorch endpoint")
         if self._predictor is not None:
             self._predictor.delete_endpoint()
 
     def execute_prediction(self, X_test: DataFrame) -> DataFrame:
+        """
+        Executes the prediction. 
+        Loads and also deletes the endpoint.
+        Splits the data in separate batches so they can be provided to the predictor.
+
+        Arguments:
+            X_test: the dataframe to predict
+
+        Returns:
+            Y_test: The predictions
+        """
         try:
             LOGGER.info("Starting the PyTorch predictions")
             self.load_predictor()
@@ -161,10 +180,10 @@ class AwsPytorch(AwsBase, ABC):
                 predictions = self._predictor.predict(batch.values)
                 prediction_list.append(DataFrame(predictions))
 
-            Y_test = pd.concat(prediction_list, axis=0)
+            Y_test = pd.concat(prediction_list, axis=0, ignore_index=True)
             LOGGER.info("Got the predictions")
         finally:
-            # self.delete_endpoint()
+            self.delete_endpoint()
             LOGGER.info("Deleting the endpoint")
             pass
         return Y_test
@@ -173,6 +192,17 @@ class AwsPytorch(AwsBase, ABC):
         return NotImplemented
 
     def split_in_batches(self, data: DataFrame, number_of_batches):
+        """
+        Splits a dataframe in a number of batches.
+        Lambda required the payload to be a maximum size, so a split needs to be made
+
+        Arguments:
+            data: Dataframe to split
+            number_of_batches: The number of batches to split in
+
+        Returns:
+            A list of dataframes that combined represent the data.
+        """
         LOGGER.info("Splitting the data in batches")
 
         number_of_rows = data.shape[0]

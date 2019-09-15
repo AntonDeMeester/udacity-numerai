@@ -59,7 +59,7 @@ class MetaModel(BaseModel):
         for index, model in enumerate(self.models):
             predictions.append(model.execute_prediction(combine_data_features))
 
-        self.model_weights = combiner.combine(combine_data_labels, predictions)
+        self.model_weights = self.combiner.combine(combine_data_labels, predictions)
 
     def execute_prediction(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -69,6 +69,7 @@ class MetaModel(BaseModel):
         Arguments:
             data: The data to predict       
         """
+        LOGGER.info("Predicting the data of the meta model")
         predictions = None
         for index, model in enumerate(self.models):
             Y_test = model.execute_prediction(data)
@@ -77,6 +78,7 @@ class MetaModel(BaseModel):
             else:
                 predictions += Y_test * self.model_weights[index]
 
+        LOGGER.info("Done with the predictions of the meta model")
         return predictions
 
     def tune(self):
@@ -94,4 +96,3 @@ class MetaModel(BaseModel):
 
         self.calculate_weights()
         LOGGER.info("Done with tuning the meta model")
-

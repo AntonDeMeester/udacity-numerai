@@ -4,7 +4,7 @@ import logging
 from typing import Iterable, Callable, List, Collection
 
 # Data science imports
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 # Local imports
 from data_processing.data_loader import DataLoader
@@ -58,7 +58,7 @@ class NaiveCombiner(Combiner):
         self.number_of_steps = number_of_steps
 
     def combine(
-        self, lables: DataFrame, predictions: Collection[DataFrame]
+        self, labels: DataFrame, predictions: Collection[DataFrame]
     ) -> List[float]:
         """
         Combines a number of output predictions to provide a weighted output.
@@ -75,19 +75,21 @@ class NaiveCombiner(Combiner):
 
         number_of_predictions = len(predictions)
         total_number_of_steps = (self.number_of_steps + 1) ** (number_of_predictions)
-        columns = lables.columns
-        indexes = lables.index
+        indexes = predictions[0].index
+        columns = predictions[0].columns
 
         best_score: float = -1
         best_weights: List[float] = []
-        best_Y: DataFrame = None
+        best_Y: Series = None
 
-        for i in range(total_number_of_steps):
-            weights = self._convert_number_to_weights(i, self.number_of_steps)
-            Y_attempt = DataFrame(0, columns=columns, index=indexes)
+        for i in range(1, total_number_of_steps + 1):
+            weights = self._convert_number_to_weights(
+                i, self.number_of_steps, number_of_predictions
+            )
+            Y_attempt = DataFrame(0, index=indexes, columns=columns, dtype="float64")
             for j, test in enumerate(predictions):
                 Y_attempt += test * weights[j]
-            score = self.score_function(lables, Y_attempt)
+            score = self.score_function(labels, Y_attempt)
             if score > best_score:
                 best_score = score
                 best_weights = weights
@@ -101,10 +103,12 @@ class NaiveCombiner(Combiner):
         )
         return best_weights
 
-    def _convert_number_to_weights(self, index, steps_per_prediction):
+    def _convert_number_to_weights(
+        self, index: int, steps_per_prediction: int, number_of_predictions: int
+    ):
         weights = []
         new_index = index
-        for i in range(self.number_of_predictions):
+        for i in range(number_of_predictions):
             new_weight = (new_index % (steps_per_prediction + 1)) / (
                 steps_per_prediction + 1
             )
