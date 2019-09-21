@@ -30,7 +30,7 @@ class MetaModel(BaseModel):
             * combiner: A BaseModel to combine the different results. 
         """
         assert models, "The list of models cannot be empty"
-        assert combiner, "You need to provide a combination function"
+        assert combiner, "You need to provide a Combiner"
         super().__init__(data)
 
         self.models: Iterable[BaseModel] = models

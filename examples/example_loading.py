@@ -1,24 +1,27 @@
-from data_processing.numerai import NumeraiDataLoader
-from models.hunga_bunga import HungaBungaRegressor
-from models.pytorch.aws_models import AwsTwoLayerLinearNeuralNetwork
-from executors.sagemaker import Sagemaker
-from sagemaker.pytorch.model import PyTorchPredictor
-from models.combiner import NaiveCombiner
-from models.meta_model import MetaModel
-from models.aws_linear_learner import LinearAwsLinearLearner
-from models.aws_xgboost import LinearAwsXGBooost
-from executors.numerai import Numerai
+# Python imports
+import logging
 import os
 
-import logging
+# Local imports
+from data_processing.numerai import NumeraiDataLoader
+from executors.numerai import Numerai
+from executors.sagemaker import Sagemaker
+from models.aws_linear_learner import LinearAwsLinearLearner
+from models.aws_xgboost import LinearAwsXGBooost
+from models.combiner import NaiveCombiner
+from models.meta_model import MetaModel
+from models.pytorch.aws_models import AwsTwoLayerLinearNeuralNetwork
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+numerai = Numerai()
+data_location = numerai.download_latest_data("data/temp")
 sagemaker = Sagemaker()
 data_loader = NumeraiDataLoader(
-    local_data_location="data/temp/2019-09-11/numerai_dataset_176/numerai_training_data.csv"
+    local_data_location=os.path.join(data_location, "numerai_training_data.csv")
 )
 
 # Loading models and Predictors
@@ -39,11 +42,8 @@ meta_model = MetaModel(
 meta_model.model_weights = [0.39999999999999997, 0.14999999999999997, 0.45]
 
 # Predict production data
-numerai = Numerai()
-location = numerai.download_latest_data("data/temp")
-location = location.replace(".zip", "")
 production_data = NumeraiDataLoader(
-    local_data_location=os.path.join(location, "numerai_tournament_data.csv")
+    local_data_location=os.path.join(data_location, "numerai_tournament_data.csv")
 )
 predictions = meta_model.predict(data_loader=production_data, all_data=True)
 

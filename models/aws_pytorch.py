@@ -112,7 +112,7 @@ class AwsPytorch(AwsBase, ABC):
                 )
         LOGGER.info(f"Loading already created pytorch model {model_location}")
 
-        self._model: PyTorchModel = PyTorchModel(
+        self._model = PyTorchModel(
             model_data=model_location,
             role=self.executor.role,
             entry_point=self.predict_entry_point,

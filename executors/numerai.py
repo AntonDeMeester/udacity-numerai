@@ -76,6 +76,7 @@ class Numerai:
         local_file_folder = self.napi.download_current_dataset(
             dest_path=local_folder, dest_filename=name, unzip=True
         )
+        local_file_folder = local_file_folder.replace(".zip", "")
         return local_file_folder
 
     def upload_predictions(
