@@ -23,12 +23,8 @@ data_loader = NumeraiDataLoader(
 
 # Loading models and Predictors
 xgboost = LinearAwsXGBooost(data=data_loader, aws_executor=sagemaker)
-xgboost.load_model("xgboost-190911-2045-001-9ea55a3c")
 linear_learner = LinearAwsLinearLearner(data=data_loader, aws_executor=sagemaker)
-linear_learner.load_model("linear-learner-190911-2051-010-c1988378")
 tl_nn = AwsTwoLayerLinearNeuralNetwork(data=data_loader, aws_executor=sagemaker)
-tl_nn.load_estimator("sagemaker-pytorch-2019-09-11-19-47-58-170")
-# tl_nn.load_predictor("sagemaker-pytorch-2019-09-13-16-25-23-269")
 
 # Creating the meta model to combine them
 combiner = NaiveCombiner(data_loader.execute_scoring, 10)
@@ -37,18 +33,19 @@ meta_model = MetaModel(
 )
 
 # Train/tune and set the weights
-# meta_model.tune()
-# meta_model.calculate_weights()
-meta_model.model_weights = [0.39999999999999997, 0.14999999999999997, 0.45]
+meta_model.tune()
+meta_model.calculate_weights()
 
-# Predict production data
+# Predict Numerai production data
 numerai = Numerai()
 location = numerai.download_latest_data("data/temp")
 location = location.replace(".zip", "")
+
 production_data = NumeraiDataLoader(
     local_data_location=os.path.join(location, "numerai_tournament_data.csv")
 )
 predictions = meta_model.predict(data_loader=production_data, all_data=True)
 
+# Format and upload
 predictions = production_data.format_predictions(predictions, all_data=True)
 numerai.upload_predictions(predictions, local_folder="data/temp/predictions")
