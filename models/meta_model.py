@@ -61,7 +61,7 @@ class MetaModel(BaseModel):
 
         self.model_weights = self.combiner.combine(combine_data_labels, predictions)
 
-    def execute_prediction(self, data: pd.DataFrame) -> pd.DataFrame:
+    def execute_prediction(self, data: pd.DataFrame, name: str = "test") -> pd.DataFrame:
         """
         Executes the prediction for each of the models.
         Then combines the predictions with the trained model weights.
@@ -72,7 +72,7 @@ class MetaModel(BaseModel):
         LOGGER.info("Predicting the data of the meta model")
         predictions = None
         for index, model in enumerate(self.models):
-            Y_test = model.execute_prediction(data)
+            Y_test = model.execute_prediction(data, name)
             if predictions is None:
                 predictions = Y_test * self.model_weights[index]
             else:

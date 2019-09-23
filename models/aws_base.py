@@ -80,7 +80,9 @@ class AwsBase(BaseModel, ABC):
         LOGGER.info("Preparing data for usage")
 
         # Try to get from cache
-        return_data = self.data.get_from_cache("s3", data_name)
+        return_data = None
+        if data_name != "predict":
+            return_data = self.data.get_from_cache("s3", data_name)
         if return_data is not None:
             LOGGER.info("Found s3 data in cache.")
             if s3_input_type:
@@ -88,7 +90,9 @@ class AwsBase(BaseModel, ABC):
             return return_data
 
         # Try to get local data from cache
-        temp_location = self.data.get_from_cache("local", data_name)
+        temp_location = None
+        if data_name != "predict":
+            temp_location = self.data.get_from_cache("local", data_name)
         # If not available, save to local
         if temp_location is None:
             if not os.path.exists(self.local_save_folder):
@@ -109,7 +113,8 @@ class AwsBase(BaseModel, ABC):
             temp_location, prefix=self.input_data_prefix
         )
         # Put in cache
-        self.data.add_to_cache("s3", data_name, return_data)
+        if data_name != "predict":
+            self.data.add_to_cache("s3", data_name, return_data)
 
         if s3_input_type:
             return_data = s3_input(return_data, content_type="text/csv")

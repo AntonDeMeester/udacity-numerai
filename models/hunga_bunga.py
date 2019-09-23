@@ -51,7 +51,7 @@ class HungaBungaBase(BaseModel):
         all_data = None
         self._model.fit(X, Y)
 
-    def execute_prediction(self, data: DataFrame) -> DataFrame:
+    def execute_prediction(self, data: DataFrame, name: str = "test") -> DataFrame:
         """
         Actually executes the predictions.
         """

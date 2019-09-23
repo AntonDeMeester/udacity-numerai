@@ -26,7 +26,7 @@ meta_model.train()
 predictions = meta_model.predict()
 ```
 
-Examples of the entire flow can be found in the examples folder, both for fully training as only loading.
+You can test the test sample by running `python examples/example_training.py`.
 
 ## Setup
 
