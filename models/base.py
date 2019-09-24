@@ -54,17 +54,19 @@ class BaseModel(ABC):
 
         if all_data:
             data = data_loader.data
+            name = "predict"
         else:
             data = data_loader.test_data
+            name = "test"
         X_test = data.loc[:, data_loader.feature_columns]
 
         # Here the magic actually happens. Implementation specific
-        predictions = self.execute_prediction(X_test, **kwargs)
+        predictions = self.execute_prediction(X_test, name, **kwargs)
 
         predictions = data_loader.format_predictions(predictions, all_data=all_data)
         return predictions
 
-    def execute_prediction(self, data: DataFrame) -> DataFrame:
+    def execute_prediction(self, data: DataFrame, name: str = "test") -> DataFrame:
         """
         Actually executes the predictions. Based on implementation
 

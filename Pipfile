@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 black = "*"
 mypy = "*"
+jupyter = "*"
 
 [packages]
 numpy = "*"
@@ -16,7 +17,6 @@ sagemaker = "*"
 numerapi = "*"
 hunga-bunga = "*"
 tabulate = "*"
-torch = {file = "https://download.pytorch.org/whl/cu100/torch-1.0.1-cp37-cp37m-win_amd64.whl"}
 torchvision = "*"
 
 [requires]

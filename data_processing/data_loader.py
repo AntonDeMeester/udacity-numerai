@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # Default Python libraries
+from abc import ABC
 from datetime import date
 import logging
 import typing
@@ -9,15 +10,14 @@ from typing import List, Tuple, Optional, Iterable, Dict, Any
 # Data science libraries
 import numpy as np
 import pandas as pd
-import sklearn
-
 from pandas import DataFrame
+import sklearn
 from sklearn.model_selection import train_test_split
 
 LOGGER = logging.getLogger(__name__)
 
 
-class DataLoader:
+class DataLoader(ABC):
     """
     This class will load and manipulate the data.
     At creation, you need to provide the data location.

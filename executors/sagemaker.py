@@ -150,8 +150,6 @@ class Sagemaker:
         if prefix is None:
             prefix = self.prefix
         key = f"{prefix}/{file_name}"
-        print(file_name)
-        print(local_file_directory)
         local_file_name = os.path.join(local_file_directory, file_name)
         LOGGER.info(
             f"Downloading data from s3: from s3://{self.bucket}/{key} to {local_file_name}"

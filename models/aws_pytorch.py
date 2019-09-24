@@ -112,7 +112,7 @@ class AwsPytorch(AwsBase, ABC):
                 )
         LOGGER.info(f"Loading already created pytorch model {model_location}")
 
-        self._model: PyTorchModel = PyTorchModel(
+        self._model = PyTorchModel(
             model_data=model_location,
             role=self.executor.role,
             entry_point=self.predict_entry_point,
@@ -151,8 +151,9 @@ class AwsPytorch(AwsBase, ABC):
         LOGGER.info("Deleting the pytorch endpoint")
         if self._predictor is not None:
             self._predictor.delete_endpoint()
+            self._predictor = None
 
-    def execute_prediction(self, X_test: DataFrame) -> DataFrame:
+    def execute_prediction(self, X_test: DataFrame, name: str = "test") -> DataFrame:
         """
         Executes the prediction. 
         Loads and also deletes the endpoint.

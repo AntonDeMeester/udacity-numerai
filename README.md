@@ -26,11 +26,15 @@ meta_model.train()
 predictions = meta_model.predict()
 ```
 
-Examples of the entire flow can be found in the examples folder, both for fully training as only loading.
+You can test the test sample by running `python examples/example_training.py`.
 
 ## Setup
 
 Install the requirements with `pip install` or with `pipenv install`.
+
+If you want to use the Numerai executor, add `NUMERAI_PUBLIC_ID` and `NUMERAI_SECRET_KEY` to your environment variables, or initialize the class with those variables.
+
+If you want to use Sagemaker, add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_ROLE` to your environment variables, or initialize the class with those variables.
 
 ## Usage
 

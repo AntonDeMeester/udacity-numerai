@@ -20,9 +20,7 @@ class Combiner(ABC):
     def __init__(self, score_function: Callable[[DataFrame, DataFrame], float]):
         self.score_function = score_function
 
-    def combine(
-        self, lables: DataFrame, predictions: Collection[DataFrame]
-    ) -> List[float]:
+    def combine(self, lables: DataFrame, predictions: List[DataFrame]) -> List[float]:
         """
         Combines predictions to provide a better aggregate prediction.
 
@@ -57,9 +55,7 @@ class NaiveCombiner(Combiner):
 
         self.number_of_steps = number_of_steps
 
-    def combine(
-        self, labels: DataFrame, predictions: Collection[DataFrame]
-    ) -> List[float]:
+    def combine(self, labels: DataFrame, predictions: List[DataFrame]) -> List[float]:
         """
         Combines a number of output predictions to provide a weighted output.
         This is a naivie combiner that assigns weights from 0 until and including step per prediction.

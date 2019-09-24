@@ -76,6 +76,7 @@ class Numerai:
         local_file_folder = self.napi.download_current_dataset(
             dest_path=local_folder, dest_filename=name, unzip=True
         )
+        local_file_folder = local_file_folder.replace(".zip", "")
         return local_file_folder
 
     def upload_predictions(
@@ -111,8 +112,7 @@ class Numerai:
         LOGGER.info("Uploading predictions to Numerai")
         submission_id = self.napi.upload_predictions(file_location)
         LOGGER.info("Done with the upload to Numerai")
-        success = self.napi.check_submission_successful(submission_id)
-        return success
+        return True
 
     def stake(self, amount: float, confidence: float) -> None:
         """
