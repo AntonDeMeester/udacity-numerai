@@ -112,8 +112,7 @@ class Numerai:
         LOGGER.info("Uploading predictions to Numerai")
         submission_id = self.napi.upload_predictions(file_location)
         LOGGER.info("Done with the upload to Numerai")
-        success = self.napi.check_submission_successful(submission_id)
-        return success
+        return True
 
     def stake(self, amount: float, confidence: float) -> None:
         """
