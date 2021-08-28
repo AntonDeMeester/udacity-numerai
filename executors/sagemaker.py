@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 # Amazon libraries
 from boto3.session import Session as BotoSession
-from sagemaker import s3_input
+from sagemaker import TrainingInput
 from sagemaker.session import Session
 
 LOGGER = logging.getLogger(__name__)
@@ -43,11 +43,11 @@ class Sagemaker:
             bucket: The bucket name. Defaulted to the session default bucket
             role: The role name to assume. Default is getting from AWS_DEFAULT_ROLE of the env variables
             prefix: The prefix to use in the bucket. Defaulted to 'data'
-            default_model_kwargs: Dict for default kwargs for any sagemaker model. 
+            default_model_kwargs: Dict for default kwargs for any sagemaker model.
                 Default contains train_instance_type, train_instance_count, role and session
-            default_transformer_kwargs: Dict for default kwargs for any sagemaker transformer. 
+            default_transformer_kwargs: Dict for default kwargs for any sagemaker transformer.
                 Default contains instance_type, instance_count, and role.
-            default_deploy_kwargs: Dict for default kwargs for any sagemaker deployment. 
+            default_deploy_kwargs: Dict for default kwargs for any sagemaker deployment.
                 Default contains instance_type and initial_instance_count.
         """
         LOGGER.info("Initializing Sagemaker executor")

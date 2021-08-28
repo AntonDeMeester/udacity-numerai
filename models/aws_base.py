@@ -10,7 +10,7 @@ import pandas as pd
 from pandas import DataFrame
 
 # Amazon imports
-from sagemaker import s3_input
+from sagemaker import TrainingInput
 from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.estimator import Estimator
 from sagemaker.predictor import RealTimePredictor
@@ -66,7 +66,7 @@ class AwsBase(BaseModel, ABC):
         x_data: DataFrame,
         y_data: Optional[DataFrame] = None,
         s3_input_type: bool = True,
-    ) -> Union[s3_input, str]:
+    ) -> Union[TrainingInput, str]:
         """
         Prepares the data to use in the learner.
 
@@ -86,7 +86,7 @@ class AwsBase(BaseModel, ABC):
         if return_data is not None:
             LOGGER.info("Found s3 data in cache.")
             if s3_input_type:
-                return s3_input(return_data, content_type="text/csv")
+                return TrainingInput(return_data, content_type="text/csv")
             return return_data
 
         # Try to get local data from cache
@@ -117,7 +117,7 @@ class AwsBase(BaseModel, ABC):
             self.data.add_to_cache("s3", data_name, return_data)
 
         if s3_input_type:
-            return_data = s3_input(return_data, content_type="text/csv")
+            return_data = TrainingInput(return_data, content_type="text/csv")
 
         return return_data
 
@@ -257,7 +257,7 @@ class AwsEstimator(AwsBase, ABC):
         Arguments:
             data: the data to load. If not provided, is defaulted to the local data
             name: The same of the predictions to save on S3.
-        
+
         Returns:
             The predicted dataframe
         """

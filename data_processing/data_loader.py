@@ -42,7 +42,7 @@ class DataLoader(ABC):
 
         Arguments:
             local_data_location: The location of the file to load the data from
-            data: The dataframe 
+            data: The dataframe
         """
         assert (0 < validation_frac + test_frac < 1) and (
             validation_frac >= 0 and test_frac >= 0
@@ -78,7 +78,7 @@ class DataLoader(ABC):
     @property
     def data(self) -> pd.DataFrame:
         """
-        Returns the data when requested. 
+        Returns the data when requested.
         The property only loads the data when it's necessary to safe memory.
         """
         if self._data is not None:
@@ -91,7 +91,7 @@ class DataLoader(ABC):
     @property
     def train_data(self) -> pd.DataFrame:
         """
-        Returns the train data when requested. 
+        Returns the train data when requested.
         The property only loads the data when it's necessary to safe memory.
         """
         if self._train_data is not None:
@@ -102,7 +102,7 @@ class DataLoader(ABC):
     @property
     def validation_data(self) -> pd.DataFrame:
         """
-        Returns the validation data when requested. 
+        Returns the validation data when requested.
         The property only loads the data when it's necessary to safe memory.
         """
         if self._validation_data is not None:
@@ -113,7 +113,7 @@ class DataLoader(ABC):
     @property
     def test_data(self) -> pd.DataFrame:
         """
-        Returns the test data when requested. 
+        Returns the test data when requested.
         The property only loads the data when it's necessary to safe memory.
         """
         if self._test_data is not None:
@@ -127,11 +127,11 @@ class DataLoader(ABC):
         """
         Splits the internal data in a train, validation and test dataframe, based on the parameters.
         validation_frac and test_frac must be larger or equal to 0, the sum must be between 0 and 1, not inclusive
-        
+
         Arguments:
             validation_frac: The fraction for the validation set
             test_frac: The fraction for the test test
-            
+
         Returns:
             None
         """
@@ -199,7 +199,7 @@ class DataLoader(ABC):
     def add_to_cache(self, data_type: str, data_name: str, data: Any) -> None:
         """
         Adds data to the cache
-        For example could be used to cache s3 locations of the uploaded data instead of 
+        For example could be used to cache s3 locations of the uploaded data instead of
         adding the data multiple time to the data.
 
         Arguments:
@@ -221,7 +221,7 @@ class DataLoader(ABC):
         Arguments:
             data_type: The type of data. One of 'local', 's3_flat', 's3_input'
             data_name: The name of the data, e.g. validation, X_test...
-        
+
         Returns:
             data: the cached data
         """
